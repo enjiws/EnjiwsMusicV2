@@ -140,6 +140,27 @@ fun ArtThumb(url: String, sizeDp: Int) {
     }
 }
 
+
+// Terjemahkan pesan error teknis (biasanya dari NewPipe, berbahasa Inggris)
+// jadi bahasa Indonesia yang dimengerti pengguna.
+fun friendlyError(e: Exception): String {
+    val msg = e.message ?: ""
+    return when {
+        msg.contains("Could not get any stream") ->
+            "lagu ini tidak menyediakan link audio yang bisa diambil"
+        msg.contains("HLS/DASH") ->
+            "lagu ini hanya tersedia sebagai stream HLS/DASH yang belum didukung"
+        msg.contains("429") || msg.contains("Too Many Requests", ignoreCase = true) ->
+            "server membatasi permintaan, coba lagi beberapa saat"
+        msg.contains("not a bot", ignoreCase = true) ->
+            "YouTube mengira aplikasi ini bot (sering karena VPN aktif) — coba matikan VPN lalu putar lagi"
+        msg.contains("needs to be reloaded", ignoreCase = true) ->
+            "YouTube gagal memuat halaman video (mesin YouTube aplikasi ketinggalan — coba lagi setelah update)"
+        msg.isBlank() -> "coba lagi"
+        else -> msg
+    }
+}
+
 @Composable
 fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String, audioUrl: String) -> Unit) {
     val context = LocalContext.current
@@ -212,7 +233,7 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
                 onPlayReady(track.title, track.artist, track.artworkUrl, url)
                 status = "Memutar: ${track.title}"
             } catch (e: Exception) {
-                status = "URL tidak dapat diputar: ${e.message ?: "format tidak didukung"}"
+                status = "Tidak dapat diputar: ${friendlyError(e)}"
             }
         }
     }
@@ -233,7 +254,7 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
                 enqueueDownload(context, track.title, track.artist, url, ext)
                 status = "Mengunduh: ${track.title} (cek notifikasi, tersimpan di Musik/ENJIWS)"
             } catch (e: Exception) {
-                status = "Gagal mengunduh: ${e.message ?: "coba lagi"}"
+                status = "Gagal mengunduh: ${friendlyError(e)}"
             }
         }
     }
