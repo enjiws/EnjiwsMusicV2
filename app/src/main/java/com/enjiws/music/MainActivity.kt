@@ -254,7 +254,7 @@ private fun MiniPlayerBar(
                 Text(artist, color = Color(0xFF9AA99D), fontSize = 12.sp, maxLines = 1)
             }
             TextButton(onClick = onToggle) {
-                Text(if (isPlaying) "PAUSE" else "PLAY", color = Color(0xFF91D6A0), fontWeight = FontWeight.Bold)
+                Text(if (isPlaying) "PAUSE" else "PLAY", color = Color(0xFF8AFF00), fontWeight = FontWeight.Bold)
             }
         }
     }

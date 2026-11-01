@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.enjiws.music"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.enjiws.music"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
     }

@@ -175,7 +175,7 @@ fun NowPlayingScreen(
                 valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
                 colors = SliderDefaults.colors(
                     thumbColor = Color.White,
-                    activeTrackColor = Color(0xFF9B8CFF),
+                    activeTrackColor = Color(0xFF8AFF00),
                     inactiveTrackColor = Color.White.copy(alpha = 0.25f)
                 ),
                 modifier = Modifier.fillMaxWidth()
@@ -234,12 +234,12 @@ fun NowPlayingScreen(
 // Latar gradasi ungu-biru-pink (cahaya nebula lembut di atas dasar gelap).
 @Composable
 private fun NowPlayingBackground() {
-    Box(Modifier.fillMaxSize().background(Color(0xFF0A0618))) {
+    Box(Modifier.fillMaxSize().background(Color(0xFF050805))) {
         Box(
             Modifier.size(360.dp).offset((-80).dp, (-60).dp)
                 .background(
                     Brush.radialGradient(
-                        listOf(Color(0xFF7C3AED).copy(alpha = 0.55f), Color.Transparent)
+                        listOf(Color(0xFF00C853).copy(alpha = 0.55f), Color.Transparent)
                     ),
                     CircleShape
                 )
@@ -248,7 +248,7 @@ private fun NowPlayingBackground() {
             Modifier.size(340.dp).offset(180.dp, 120.dp)
                 .background(
                     Brush.radialGradient(
-                        listOf(Color(0xFFDB2777).copy(alpha = 0.45f), Color.Transparent)
+                        listOf(Color(0xFFFFEA00).copy(alpha = 0.45f), Color.Transparent)
                     ),
                     CircleShape
                 )
@@ -257,7 +257,7 @@ private fun NowPlayingBackground() {
             Modifier.size(300.dp).offset((-100).dp, 420.dp)
                 .background(
                     Brush.radialGradient(
-                        listOf(Color(0xFF2563EB).copy(alpha = 0.45f), Color.Transparent)
+                        listOf(Color(0xFF76FF03).copy(alpha = 0.45f), Color.Transparent)
                     ),
                     CircleShape
                 )
@@ -266,7 +266,7 @@ private fun NowPlayingBackground() {
             Modifier.size(260.dp).offset(200.dp, 560.dp)
                 .background(
                     Brush.radialGradient(
-                        listOf(Color(0xFF9333EA).copy(alpha = 0.40f), Color.Transparent)
+                        listOf(Color(0xFF00E676).copy(alpha = 0.40f), Color.Transparent)
                     ),
                     CircleShape
                 )
@@ -383,7 +383,7 @@ fun NowPlayingScreenFromController(
     )
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF0A0618)
+@Preview(showBackground = true, backgroundColor = 0xFF050805)
 @Composable
 private fun NowPlayingScreenPreview() {
     NowPlayingScreen(

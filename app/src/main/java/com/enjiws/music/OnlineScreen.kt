@@ -249,16 +249,16 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
 
         Row {
             TextButton(onClick = { toggle(Source.SoundCloud) }) {
-                Text("SoundCloud", color = if (Source.SoundCloud in selected) Color(0xFF91D6A0) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
+                Text("SoundCloud", color = if (Source.SoundCloud in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
             TextButton(onClick = { toggle(Source.YouTube) }) {
-                Text("YouTube", color = if (Source.YouTube in selected) Color(0xFF91D6A0) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
+                Text("YouTube", color = if (Source.YouTube in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
             TextButton(onClick = { toggle(Source.Apple) }) {
-                Text("Apple", color = if (Source.Apple in selected) Color(0xFF91D6A0) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
+                Text("Apple", color = if (Source.Apple in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
             TextButton(onClick = { toggle(Source.Audius) }) {
-                Text("Audius", color = if (Source.Audius in selected) Color(0xFF91D6A0) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
+                Text("Audius", color = if (Source.Audius in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
         }
 
@@ -287,7 +287,7 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
                     }
                     if (track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank() || track.soundcloudUrl.isNotBlank()) {
                         TextButton(onClick = { downloadTrack(track) }) {
-                            Text("UNDUH", color = Color(0xFF91D6A0), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("UNDUH", color = Color(0xFF8AFF00), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
