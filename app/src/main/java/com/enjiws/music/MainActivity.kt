@@ -7,13 +7,17 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -22,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import org.schabi.newpipe.extractor.NewPipe
@@ -83,6 +89,11 @@ private fun MainScreen() {
     var nowTitle by remember { mutableStateOf("") }
     var nowArtist by remember { mutableStateOf("") }
 
+    // Antrean lagu online: hasil pencarian terakhir + posisi lagu yang sedang jalan.
+    // -1 artinya tidak ada antrean online aktif (mis. sedang memutar lagu lokal).
+    var onlineQueue by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
+    var onlineIndex by remember { mutableStateOf(-1) }
+
     // Izin akses musik (untuk tab Lokal).
     var audioGranted by remember {
         mutableStateOf(
@@ -117,6 +128,12 @@ private fun MainScreen() {
         }, MoreExecutors.directExecutor())
     }
 
+    // Tombol kembali sistem: pindah layar dulu, bukan langsung keluar aplikasi.
+    // Now Playing -> layar sebelumnya; Online -> Lokal; Lokal -> keluar (default sistem).
+    BackHandler(enabled = screen != AppScreen.Library) {
+        screen = if (screen == AppScreen.NowPlaying) previousScreen else AppScreen.Library
+    }
+
     // Poll status pemutar untuk mini player.
     LaunchedEffect(controller) {
         while (true) {
@@ -130,30 +147,65 @@ private fun MainScreen() {
         }
     }
 
+    // Saat satu lagu online habis, lanjut otomatis ke hasil berikutnya.
+    // Kalau satu lagu gagal dibuka, loncat ke lagu sesudahnya (bukan berhenti).
+    DisposableEffect(controller) {
+        val c = controller ?: return@DisposableEffect onDispose { }
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state != Player.STATE_ENDED) return
+                val q = onlineQueue
+                val i = onlineIndex
+                if (i < 0 || i + 1 >= q.size) {
+                    onlineIndex = -1
+                    return
+                }
+                scope.launch {
+                    for (j in i + 1 until q.size) {
+                        try {
+                            val url = resolveTrackUrl(q[j])
+                            playOnline(q, j, url)
+                            return@launch
+                        } catch (e: Exception) {
+                            // Lagu ini gagal dibuka, coba lagu berikutnya.
+                        }
+                    }
+                    onlineIndex = -1
+                }
+            }
+        }
+        c.addListener(listener)
+        onDispose { c.removeListener(listener) }
+    }
+
     fun openNowPlaying() {
         previousScreen = screen
         screen = AppScreen.NowPlaying
     }
 
-    fun playReady(title: String, artist: String, artworkUrl: String, audioUrl: String) {
+    fun playOnline(queue: List<OnlineTrack>, index: Int, resolvedUrl: String) {
         val c = controller ?: return
+        val track = queue[index]
+        onlineQueue = queue
+        onlineIndex = index
         val item = MediaItem.Builder()
-            .setUri(audioUrl)
+            .setUri(resolvedUrl)
             .setMediaMetadata(
                 MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setArtist(artist)
-                    .setArtworkUri(artworkUrl.takeIf { it.isNotBlank() }?.let { Uri.parse(it) })
+                    .setTitle(track.title)
+                    .setArtist(track.artist)
+                    .setArtworkUri(track.artworkUrl.takeIf { it.isNotBlank() }?.let { Uri.parse(it) })
                     .build()
             )
             .build()
         c.setMediaItem(item)
         c.prepare()
         c.play()
-        scope.launch { lyrics = fetchLyrics(artist, title) }
+        scope.launch { lyrics = fetchLyrics(track.artist, track.title) }
     }
 
     fun playLocal(songs: List<LocalSong>, index: Int) {
+        onlineIndex = -1
         val c = controller ?: return
         val items = songs.map { song ->
             MediaItem.Builder()
@@ -211,25 +263,35 @@ private fun MainScreen() {
         }
     ) { padding ->
         Column(Modifier.padding(padding)) {
-            when (screen) {
-                AppScreen.Library -> LibraryScreen(
-                    hasPermission = audioGranted,
-                    onRequestPermission = {
-                        audioPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
-                    },
-                    onPlayLocal = { songs, index -> playLocal(songs, index) }
-                )
-                AppScreen.Online -> OnlineScreen(
-                    onPlayReady = { title, artist, artworkUrl, audioUrl ->
-                        playReady(title, artist, artworkUrl, audioUrl)
-                    }
-                )
-                AppScreen.NowPlaying -> NowPlayingScreenFromController(
-                    controller = controller,
-                    lyrics = lyrics,
-                    onBack = { screen = previousScreen },
-                    onMore = { }
-                )
+            // Layar Lokal dan Online selalu dikomposisi; yang tidak aktif dibuat
+            // berukuran nol (tetap ada, tapi tak terlihat). Dengan begitu state-nya
+            // — teks pencarian, hasil, pilihan sumber — tidak hilang saat pindah
+            // layar, mis. ke Now Playing lalu kembali.
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().then(if (screen == AppScreen.Library) Modifier else Modifier.size(0.dp))) {
+                    LibraryScreen(
+                        hasPermission = audioGranted,
+                        onRequestPermission = {
+                            audioPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
+                        },
+                        onPlayLocal = { songs, index -> playLocal(songs, index) }
+                    )
+                }
+                Box(Modifier.fillMaxSize().then(if (screen == AppScreen.Online) Modifier else Modifier.size(0.dp))) {
+                    OnlineScreen(
+                        onPlayReady = { queue, index, url ->
+                            playOnline(queue, index, url)
+                        }
+                    )
+                }
+                if (screen == AppScreen.NowPlaying) {
+                    NowPlayingScreenFromController(
+                        controller = controller,
+                        lyrics = lyrics,
+                        onBack = { screen = previousScreen },
+                        onMore = { }
+                    )
+                }
             }
         }
     }

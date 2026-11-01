@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -59,7 +60,7 @@ data class OnlineTrack(
     val storeUrl: String = ""
 )
 
-private enum class Source { SoundCloud, YouTube, Apple, Audius }
+private enum class Source { YouTube, Apple, Audius }
 
 private suspend fun searchNewPipe(service: StreamingService, query: String, source: String): List<OnlineTrack> =
     withContext(Dispatchers.IO) {
@@ -79,7 +80,7 @@ private suspend fun searchNewPipe(service: StreamingService, query: String, sour
                 durationSeconds = item.getDuration(),
                 source = source,
                 youtubeUrl = if (source == "YouTube") item.getUrl() else "",
-                soundcloudUrl = if (source == "SoundCloud") item.getUrl() else ""
+                soundcloudUrl = ""
             )
         }
     }
@@ -161,15 +162,21 @@ fun friendlyError(e: Exception): String {
     }
 }
 
+// Ambil URL audio yang bisa diputar untuk satu lagu online.
+suspend fun resolveTrackUrl(track: OnlineTrack): String = when {
+    track.youtubeUrl.isNotBlank() -> resolveStreamAudio(ServiceList.YouTube, track.youtubeUrl)
+    else -> track.audioUrl
+}
+
 @Composable
-fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String, audioUrl: String) -> Unit) {
+fun OnlineScreen(onPlayReady: (queue: List<OnlineTrack>, index: Int, url: String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var query by remember { mutableStateOf("") }
-    var selected by remember { mutableStateOf(setOf(Source.SoundCloud, Source.YouTube, Source.Apple, Source.Audius)) }
+    var selected by remember { mutableStateOf(setOf(Source.YouTube, Source.Apple, Source.Audius)) }
     var results by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
-    var status by remember { mutableStateOf("Cari lagu dari SoundCloud, YouTube, Apple Music, dan Audius.") }
+    var status by remember { mutableStateOf("Cari lagu dari YouTube, Apple Music, dan Audius.") }
     var searching by remember { mutableStateOf(false) }
 
     fun toggle(source: Source) {
@@ -191,10 +198,6 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
             status = "Mencari \"$q\"..."
             val found = mutableListOf<OnlineTrack>()
             val failed = mutableListOf<String>()
-            if (Source.SoundCloud in selected) {
-                runCatching { found += searchNewPipe(ServiceList.SoundCloud, q, "SoundCloud") }
-                    .onFailure { failed += "SoundCloud" }
-            }
             if (Source.YouTube in selected) {
                 runCatching { found += searchNewPipe(ServiceList.YouTube, q, "YouTube") }
                     .onFailure { failed += "YouTube" }
@@ -215,22 +218,18 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
         }
     }
 
-    fun playTrack(track: OnlineTrack) {
+    fun playTrack(track: OnlineTrack, index: Int) {
         scope.launch {
             try {
-                if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.soundcloudUrl.isBlank()) {
+                if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank()) {
                     if (track.storeUrl.isNotBlank()) {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(track.storeUrl)))
                     }
                     return@launch
                 }
                 status = "Memuat: ${track.title}..."
-                val url = when {
-                    track.soundcloudUrl.isNotBlank() -> resolveStreamAudio(ServiceList.SoundCloud, track.soundcloudUrl)
-                    track.youtubeUrl.isNotBlank() -> resolveStreamAudio(ServiceList.YouTube, track.youtubeUrl)
-                    else -> track.audioUrl
-                }
-                onPlayReady(track.title, track.artist, track.artworkUrl, url)
+                val url = resolveTrackUrl(track)
+                onPlayReady(results, index, url)
                 status = "Memutar: ${track.title}"
             } catch (e: Exception) {
                 status = "Tidak dapat diputar: ${friendlyError(e)}"
@@ -243,7 +242,6 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
             try {
                 status = "Menyiapkan unduhan: ${track.title}..."
                 val (url, ext) = when {
-                    track.soundcloudUrl.isNotBlank() -> resolveStreamAudioDetailed(ServiceList.SoundCloud, track.soundcloudUrl)
                     track.youtubeUrl.isNotBlank() -> resolveStreamAudioDetailed(ServiceList.YouTube, track.youtubeUrl)
                     track.audioUrl.isNotBlank() -> track.audioUrl to "mp3"
                     else -> {
@@ -274,9 +272,6 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
         Spacer(Modifier.height(8.dp))
 
         Row {
-            TextButton(onClick = { toggle(Source.SoundCloud) }) {
-                Text("SoundCloud", color = if (Source.SoundCloud in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
-            }
             TextButton(onClick = { toggle(Source.YouTube) }) {
                 Text("YouTube", color = if (Source.YouTube in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
@@ -293,13 +288,13 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
         }
         Spacer(Modifier.height(8.dp))
         Text(status, color = Color(0xFF9AA99D), fontSize = 11.sp)
-        Text("Ketuk lagu untuk memutar, tombol UNDUH untuk menyimpan ke folder Musik/ENJIWS.", color = Color(0xFF9AA99D), fontSize = 10.sp)
+        Text("Ketuk lagu untuk memutar (otomatis lanjut ke hasil berikutnya), tombol UNDUH untuk menyimpan ke folder Musik/ENJIWS.", color = Color(0xFF9AA99D), fontSize = 10.sp)
         Spacer(Modifier.height(8.dp))
 
         LazyColumn(Modifier.fillMaxSize()) {
-            items(results) { track ->
+            itemsIndexed(results) { index, track ->
                 Row(
-                    Modifier.fillMaxWidth().clickable { playTrack(track) }.padding(vertical = 8.dp),
+                    Modifier.fillMaxWidth().clickable { playTrack(track, index) }.padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ArtThumb(track.artworkUrl, 46)
@@ -307,11 +302,11 @@ fun OnlineScreen(onPlayReady: (title: String, artist: String, artworkUrl: String
                     Column(Modifier.weight(1f)) {
                         Text(track.title, color = Color(0xFFF1F5F1), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                         Text(
-                            "${track.artist}  ·  ${if (track.durationSeconds > 0) "${track.durationSeconds / 60}:${(track.durationSeconds % 60).toString().padStart(2, '0')}  ·  " else ""}${track.source}${if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.soundcloudUrl.isBlank()) " · BUKA LAGU" else " · PUTAR"}",
+                            "${track.artist}  ·  ${if (track.durationSeconds > 0) "${track.durationSeconds / 60}:${(track.durationSeconds % 60).toString().padStart(2, '0')}  ·  " else ""}${track.source}${if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank()) " · BUKA LAGU" else " · PUTAR"}",
                             color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 1
                         )
                     }
-                    if (track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank() || track.soundcloudUrl.isNotBlank()) {
+                    if (track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank()) {
                         TextButton(onClick = { downloadTrack(track) }) {
                             Text("UNDUH", color = Color(0xFF8AFF00), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
