@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -269,7 +270,7 @@ private fun MainScreen() {
             // — teks pencarian, hasil, pilihan sumber — tidak hilang saat pindah
             // layar, mis. ke Now Playing lalu kembali.
             Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxSize().then(if (screen == AppScreen.Library) Modifier else Modifier.size(0.dp))) {
+                Box(Modifier.fillMaxSize().then(if (screen == AppScreen.Library) Modifier else Modifier.size(0.dp).clipToBounds())) {
                     LibraryScreen(
                         hasPermission = audioGranted,
                         onRequestPermission = {
@@ -278,7 +279,7 @@ private fun MainScreen() {
                         onPlayLocal = { songs, index -> playLocal(songs, index) }
                     )
                 }
-                Box(Modifier.fillMaxSize().then(if (screen == AppScreen.Online) Modifier else Modifier.size(0.dp))) {
+                Box(Modifier.fillMaxSize().then(if (screen == AppScreen.Online) Modifier else Modifier.size(0.dp).clipToBounds())) {
                     OnlineScreen(
                         onPlayReady = { queue, index, url ->
                             playOnline(queue, index, url)
