@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
@@ -184,6 +186,8 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
     var results by resultsState
     var status by statusState
     var searching by remember { mutableStateOf(false) }
+    var addTarget by remember { mutableStateOf<OnlineTrack?>(null) }
+    var newPlaylistName by remember { mutableStateOf("") }
 
     fun toggle(source: Source) {
         selected = if (source in selected) selected - source else selected + source
@@ -267,7 +271,8 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(16.dp))
         Text("Online", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(12.dp))
@@ -319,6 +324,20 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
                             color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 1
                         )
                     }
+                    TextButton(onClick = {
+                        val added = PlaylistStore.toggleFavorite(track)
+                        status = if (added) "Ditambahkan ke Favorit: ${track.title}" else "Dihapus dari Favorit: ${track.title}"
+                    }) {
+                        val fav = PlaylistStore.isFavorite(track)
+                        Text(
+                            if (fav) "♥" else "♡",
+                            color = if (fav) Color(0xFFFF5252) else Color(0xFF9AA99D),
+                            fontSize = 16.sp, fontWeight = FontWeight.Bold
+                        )
+                    }
+                    TextButton(onClick = { addTarget = track }) {
+                        Text("+", color = Color(0xFF8AFF00), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
                     if (track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank() || track.pipedId.isNotBlank()) {
                         TextButton(onClick = { downloadTrack(track) }) {
                             Text("UNDUH", color = Color(0xFF8AFF00), fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -328,5 +347,60 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
                 HorizontalDivider(color = Color(0xFF253129))
             }
         }
+    }
+
+    val target = addTarget
+    if (target != null) {
+        AlertDialog(
+            onDismissRequest = { addTarget = null },
+            title = { Text("Tambah ke playlist") },
+            text = {
+                Column {
+                    Text(target.title, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(onClick = {
+                        val added = PlaylistStore.toggleFavorite(target)
+                        status = if (added) "Ditambahkan ke Favorit: ${target.title}" else "Dihapus dari Favorit: ${target.title}"
+                        addTarget = null
+                    }) {
+                        Text(if (PlaylistStore.isFavorite(target)) "♥ Hapus dari Favorit" else "♡ Tambah ke Favorit", color = Color(0xFF8AFF00))
+                    }
+                    PlaylistStore.playlists.forEach { pl ->
+                        TextButton(onClick = {
+                            PlaylistStore.addToPlaylist(pl.id, target)
+                            status = "Ditambahkan ke playlist \"${pl.name}\"."
+                            addTarget = null
+                        }) {
+                            Text("Tambah ke \"${pl.name}\"", color = Color(0xFF8AFF00))
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newPlaylistName,
+                        onValueChange = { newPlaylistName = it },
+                        placeholder = { Text("Nama playlist baru...") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = {
+                        if (newPlaylistName.isNotBlank()) {
+                            val pl = PlaylistStore.createPlaylist(newPlaylistName.trim())
+                            PlaylistStore.addToPlaylist(pl.id, target)
+                            status = "Ditambahkan ke playlist \"${pl.name}\"."
+                            newPlaylistName = ""
+                            addTarget = null
+                        }
+                    }) {
+                        Text("BUAT & TAMBAH", color = Color(0xFF8AFF00), fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            confirmButton = { },
+            dismissButton = {
+                TextButton(onClick = { addTarget = null }) { Text("BATAL", color = Color(0xFF9AA99D)) }
+            }
+        )
+    }
     }
 }

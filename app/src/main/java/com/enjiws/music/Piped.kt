@@ -11,7 +11,7 @@ import java.net.URLEncoder
 // Beberapa API Piped publik dicoba berurutan; kalau satu gagal/tidak menjawab,
 // pindah ke berikutnya. Semua request memakai httpClient aplikasi (DoH),
 // jadi tetap jalan meskipun DNS sistem bermasalah saat bypass.
-private val pipedApiInstances = listOf(
+val pipedApiInstances = listOf(
     "https://pipedapi.kavin.rocks",
     "https://pipedapi.adminforge.de",
     "https://pipedapi.leptons.xyz"

@@ -19,6 +19,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,6 +66,9 @@ fun NowPlayingScreen(
     onSeek: (Long) -> Unit,
     onShuffleToggle: () -> Unit,
     onRepeatToggle: () -> Unit,
+    favoriteTrack: OnlineTrack? = null,
+    isFavorite: Boolean = false,
+    onFavoriteToggle: () -> Unit = {},
 ) {
     val currentLineIndex = remember(lyrics, positionMs) {
         if (lyrics.isEmpty()) -1
@@ -86,6 +90,15 @@ fun NowPlayingScreen(
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Now Playing", color = Color.White, fontSize = 15.sp, fontFamily = FontFamily.Serif)
                     Text("Sedang Diputar", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                }
+                if (favoriteTrack != null) {
+                    TextButton(onClick = onFavoriteToggle) {
+                        Text(
+                            if (isFavorite) "♥" else "♡",
+                            color = if (isFavorite) Color(0xFFFF5252) else Color.White.copy(alpha = 0.7f),
+                            fontSize = 20.sp, fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 GlassGlyphButton(onClick = onMore, glyph = "•••", fontSize = 16.sp)
             }
@@ -316,6 +329,9 @@ fun NowPlayingScreenFromController(
     lyrics: List<LyricLine>,
     onBack: () -> Unit,
     onMore: () -> Unit,
+    favoriteTrack: OnlineTrack? = null,
+    isFavorite: Boolean = false,
+    onFavoriteToggle: () -> Unit = {},
 ) {
     var positionMs by remember { mutableStateOf(0L) }
     var durationMs by remember { mutableStateOf(0L) }
@@ -380,6 +396,9 @@ fun NowPlayingScreenFromController(
                 }
             }
         },
+        favoriteTrack = favoriteTrack,
+        isFavorite = isFavorite,
+        onFavoriteToggle = onFavoriteToggle,
     )
 }
 

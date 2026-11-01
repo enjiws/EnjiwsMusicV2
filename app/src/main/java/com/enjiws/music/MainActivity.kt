@@ -47,7 +47,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class AppScreen { Library, Online, NowPlaying }
+enum class AppScreen { Library, Online, Playlist, NowPlaying }
 
 class MainActivity : ComponentActivity() {
 
@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         NewPipe.init(OkHttpDownloader())
+        PlaylistStore.init(applicationContext)
         setContent {
             EnjiwsTheme {
                 MainScreen()
@@ -97,7 +98,7 @@ private fun MainScreen() {
     val onlineQueryState = remember { mutableStateOf("") }
     val onlineSelectedState = remember { mutableStateOf(setOf(Source.YouTube, Source.Apple, Source.Audius, Source.Piped)) }
     val onlineResultsState = remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
-    val onlineStatusState = remember { mutableStateOf("Cari lagu dari YouTube, Apple Music, dan Audius.") }
+    val onlineStatusState = remember { mutableStateOf("Cari lagu dari YouTube, Apple Music, Audius, dan Piped.") }
 
     // Izin akses musik (untuk tab Lokal).
     var audioGranted by remember {
@@ -203,6 +204,10 @@ private fun MainScreen() {
 
     // Saat satu lagu online habis, lanjut otomatis ke hasil berikutnya.
     // Kalau satu lagu gagal dibuka, loncat ke lagu sesudahnya (bukan berhenti).
+    // Kalau antrean habis, ambil lagu terkait dari lagu terakhir dan lanjutkan
+    // (radio otomatis): YouTube via related NewPipe (jatuh ke Piped kalau kena
+    // bot check), Piped via related Piped. Lagu yang sudah ada di antrean
+    // tidak diulang.
     DisposableEffect(controller) {
         val c = controller ?: return@DisposableEffect onDispose { }
         val listener = object : Player.Listener {
@@ -210,10 +215,7 @@ private fun MainScreen() {
                 if (state != Player.STATE_ENDED) return
                 val q = onlineQueue
                 val i = onlineIndex
-                if (i < 0 || i + 1 >= q.size) {
-                    onlineIndex = -1
-                    return
-                }
+                if (i < 0) return
                 scope.launch {
                     for (j in i + 1 until q.size) {
                         try {
@@ -222,6 +224,31 @@ private fun MainScreen() {
                             return@launch
                         } catch (e: Exception) {
                             // Lagu ini gagal dibuka, coba lagu berikutnya.
+                        }
+                    }
+                    // Antrean habis: lanjut ke lagu terkait dari lagu terakhir.
+                    val last = q.getOrNull(i)
+                    if (last == null) {
+                        onlineIndex = -1
+                        return@launch
+                    }
+                    val related = try {
+                        fetchRelatedTracks(last).filter { r -> q.none { isSameSong(it, r) } }
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+                    if (related.isEmpty()) {
+                        onlineIndex = -1
+                        return@launch
+                    }
+                    val newQueue = q + related
+                    for (j in q.size until newQueue.size) {
+                        try {
+                            val url = resolveTrackUrl(newQueue[j])
+                            playOnline(newQueue, j, url)
+                            return@launch
+                        } catch (e: Exception) {
+                            // Lagu terkait ini gagal dibuka, coba berikutnya.
                         }
                     }
                     onlineIndex = -1
@@ -263,6 +290,12 @@ private fun MainScreen() {
                             icon = { Text("◎", fontSize = 18.sp) },
                             label = { Text("Online") }
                         )
+                        NavigationBarItem(
+                            selected = screen == AppScreen.Playlist,
+                            onClick = { screen = AppScreen.Playlist },
+                            icon = { Text("▤", fontSize = 18.sp) },
+                            label = { Text("Playlist") }
+                        )
                     }
                 }
             }
@@ -286,11 +319,22 @@ private fun MainScreen() {
                         playOnline(queue, index, url)
                     }
                 )
+                AppScreen.Playlist -> PlaylistScreen(
+                    onPlayReady = { queue, index, url ->
+                        playOnline(queue, index, url)
+                    }
+                )
                 AppScreen.NowPlaying -> NowPlayingScreenFromController(
                     controller = controller,
                     lyrics = lyrics,
                     onBack = { screen = previousScreen },
-                    onMore = { }
+                    onMore = { },
+                    favoriteTrack = if (onlineIndex >= 0) onlineQueue.getOrNull(onlineIndex) else null,
+                    isFavorite = (if (onlineIndex >= 0) onlineQueue.getOrNull(onlineIndex) else null)?.let { PlaylistStore.isFavorite(it) } ?: false,
+                    onFavoriteToggle = {
+                        val t = if (onlineIndex >= 0) onlineQueue.getOrNull(onlineIndex) else null
+                        if (t != null) PlaylistStore.toggleFavorite(t)
+                    }
                 )
             }
         }
