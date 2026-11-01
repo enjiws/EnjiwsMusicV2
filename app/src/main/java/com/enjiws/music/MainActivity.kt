@@ -147,36 +147,6 @@ private fun MainScreen() {
         }
     }
 
-    // Saat satu lagu online habis, lanjut otomatis ke hasil berikutnya.
-    // Kalau satu lagu gagal dibuka, loncat ke lagu sesudahnya (bukan berhenti).
-    DisposableEffect(controller) {
-        val c = controller ?: return@DisposableEffect onDispose { }
-        val listener = object : Player.Listener {
-            override fun onPlaybackStateChanged(state: Int) {
-                if (state != Player.STATE_ENDED) return
-                val q = onlineQueue
-                val i = onlineIndex
-                if (i < 0 || i + 1 >= q.size) {
-                    onlineIndex = -1
-                    return
-                }
-                scope.launch {
-                    for (j in i + 1 until q.size) {
-                        try {
-                            val url = resolveTrackUrl(q[j])
-                            playOnline(q, j, url)
-                            return@launch
-                        } catch (e: Exception) {
-                            // Lagu ini gagal dibuka, coba lagu berikutnya.
-                        }
-                    }
-                    onlineIndex = -1
-                }
-            }
-        }
-        c.addListener(listener)
-        onDispose { c.removeListener(listener) }
-    }
 
     fun openNowPlaying() {
         previousScreen = screen
@@ -224,6 +194,37 @@ private fun MainScreen() {
         c.play()
         val song = songs[index]
         scope.launch { lyrics = fetchLyrics(song.artist, song.title) }
+    }
+
+    // Saat satu lagu online habis, lanjut otomatis ke hasil berikutnya.
+    // Kalau satu lagu gagal dibuka, loncat ke lagu sesudahnya (bukan berhenti).
+    DisposableEffect(controller) {
+        val c = controller ?: return@DisposableEffect onDispose { }
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(state: Int) {
+                if (state != Player.STATE_ENDED) return
+                val q = onlineQueue
+                val i = onlineIndex
+                if (i < 0 || i + 1 >= q.size) {
+                    onlineIndex = -1
+                    return
+                }
+                scope.launch {
+                    for (j in i + 1 until q.size) {
+                        try {
+                            val url = resolveTrackUrl(q[j])
+                            playOnline(q, j, url)
+                            return@launch
+                        } catch (e: Exception) {
+                            // Lagu ini gagal dibuka, coba lagu berikutnya.
+                        }
+                    }
+                    onlineIndex = -1
+                }
+            }
+        }
+        c.addListener(listener)
+        onDispose { c.removeListener(listener) }
     }
 
     Scaffold(
