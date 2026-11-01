@@ -50,7 +50,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class AppScreen { Library, Online, Playlist, NowPlaying }
+enum class AppScreen { Library, Online, Playlist, Queue, NowPlaying }
 
 class MainActivity : ComponentActivity() {
 
@@ -83,7 +83,9 @@ private fun MainScreen() {
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var screen by remember { mutableStateOf(AppScreen.Library) }
     var previousScreen by remember { mutableStateOf(AppScreen.Library) }
+    var queueOrigin by remember { mutableStateOf(AppScreen.NowPlaying) }
     var lyrics by remember { mutableStateOf<List<LyricLine>>(emptyList()) }
+    var plainLyrics by remember { mutableStateOf("") }
 
     // Status mini player (dipoll dari controller tiap 500 ms).
     var isPlaying by remember { mutableStateOf(false) }
@@ -142,7 +144,11 @@ private fun MainScreen() {
     // Tombol kembali sistem: pindah layar dulu, bukan langsung keluar aplikasi.
     // Now Playing -> layar sebelumnya; Online -> Lokal; Lokal -> keluar (default sistem).
     BackHandler(enabled = screen != AppScreen.Library) {
-        screen = if (screen == AppScreen.NowPlaying) previousScreen else AppScreen.Library
+        screen = when (screen) {
+            AppScreen.NowPlaying -> previousScreen
+            AppScreen.Queue -> queueOrigin
+            else -> AppScreen.Library
+        }
     }
 
     // Poll status pemutar untuk mini player.
@@ -184,7 +190,11 @@ private fun MainScreen() {
         c.setMediaItem(item)
         c.prepare()
         c.play()
-        scope.launch { lyrics = fetchLyrics(track.artist, track.title) }
+        scope.launch {
+            val synced = fetchLyrics(track.artist, track.title)
+            lyrics = synced
+            plainLyrics = if (synced.isEmpty()) fetchPlainLyrics(track.artist, track.title) ?: "" else ""
+        }
     }
 
     fun playLocal(songs: List<LocalSong>, index: Int) {
@@ -206,7 +216,11 @@ private fun MainScreen() {
         c.prepare()
         c.play()
         val song = songs[index]
-        scope.launch { lyrics = fetchLyrics(song.artist, song.title) }
+        scope.launch {
+            val synced = fetchLyrics(song.artist, song.title)
+            lyrics = synced
+            plainLyrics = if (synced.isEmpty()) fetchPlainLyrics(song.artist, song.title) ?: "" else ""
+        }
     }
 
     // Maju satu lagu di antrean online. Kalau lagu berikutnya gagal dibuka,
@@ -291,7 +305,7 @@ private fun MainScreen() {
 
     Scaffold(
         bottomBar = {
-            if (screen != AppScreen.NowPlaying) {
+            if (screen != AppScreen.NowPlaying && screen != AppScreen.Queue) {
                 Column {
                     if (nowTitle.isNotBlank()) {
                         MiniPlayerBar(
@@ -357,9 +371,16 @@ private fun MainScreen() {
                         playOnline(queue, index, url)
                     }
                 )
+                AppScreen.Queue -> QueueScreen(
+                    queue = onlineQueue,
+                    currentIndex = onlineIndex,
+                    onBack = { screen = queueOrigin },
+                    onPlayReady = { queue, index, url -> playOnline(queue, index, url) }
+                )
                 AppScreen.NowPlaying -> NowPlayingScreenFromController(
                     controller = controller,
                     lyrics = lyrics,
+                    plainLyrics = plainLyrics,
                     onBack = { screen = previousScreen },
                     onMore = { },
                     favoriteTrack = if (onlineIndex >= 0) onlineQueue.getOrNull(onlineIndex) else null,
@@ -368,6 +389,7 @@ private fun MainScreen() {
                         val t = if (onlineIndex >= 0) onlineQueue.getOrNull(onlineIndex) else null
                         if (t != null) PlaylistStore.toggleFavorite(t)
                     }
+                    onQueue = { queueOrigin = screen; screen = AppScreen.Queue }
                 )
             }
         }

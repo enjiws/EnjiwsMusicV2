@@ -2,6 +2,15 @@ package com.enjiws.music
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +62,7 @@ fun NowPlayingScreen(
     artist: String,
     artworkUrl: String,
     lyrics: List<LyricLine>,
+    plainLyrics: String = "",
     positionMs: Long,
     durationMs: Long,
     isPlaying: Boolean,
@@ -69,6 +79,7 @@ fun NowPlayingScreen(
     favoriteTrack: OnlineTrack? = null,
     isFavorite: Boolean = false,
     onFavoriteToggle: () -> Unit = {},
+    onQueue: () -> Unit = {},
 ) {
     val currentLineIndex = remember(lyrics, positionMs) {
         if (lyrics.isEmpty()) -1
@@ -100,32 +111,18 @@ fun NowPlayingScreen(
                         )
                     }
                 }
+                GlassGlyphButton(onClick = onQueue, glyph = "≡", fontSize = 20.sp)
                 GlassGlyphButton(onClick = onMore, glyph = "•••", fontSize = 16.sp)
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(20.dp))
 
-            // Artwork besar dengan sudut membulat
-            Box(
-                Modifier.size(280.dp)
-                    .shadow(28.dp, RoundedCornerShape(20.dp))
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White.copy(alpha = 0.08f)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (artworkUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = artworkUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Text("♪", color = Color.White.copy(alpha = 0.5f), fontSize = 64.sp)
-                }
-            }
+            // Piringan vinyl berputar (menggantikan thumbnail kotak besar).
+            // Berputar saat lagu jalan, berhenti saat pause. Cover lagu jadi
+            // label tengah piringan; kalau tidak ada cover, label hijau neon.
+            SpinningVinyl(artworkUrl = artworkUrl, isPlaying = isPlaying, sizeDp = 200)
 
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(16.dp))
 
             Text(
                 title.ifBlank { "Unknown title" },
@@ -146,16 +143,15 @@ fun NowPlayingScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            // Lirik tersinkron: 5 baris di sekitar baris aktif, baris aktif
-            // paling besar dan terang, baris lain meredup sesuai jaraknya.
-            Column(
-                Modifier.weight(1f).fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                if (lyrics.isEmpty()) {
-                    Text("Lirik tidak tersedia", color = Color.White.copy(alpha = 0.5f), fontSize = 16.sp)
-                } else {
+            // Lirik: tersinkron (5 baris di sekitar baris aktif) kalau ada;
+            // kalau tidak, tampilkan lirik biasa yang bisa digulir; kalau
+            // tidak ada sama sekali, tampilkan keterangan.
+            if (lyrics.isNotEmpty()) {
+                Column(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     val start = (currentLineIndex - 2).coerceAtLeast(0)
                     val end = (start + 5).coerceAtMost(lyrics.size)
                     for (i in start until end) {
@@ -165,13 +161,35 @@ fun NowPlayingScreen(
                             text = lyrics[i].text,
                             color = if (isCurrent) Color.White
                                 else Color.White.copy(alpha = if (distance == 1) 0.55f else 0.35f),
-                            fontSize = if (isCurrent) 26.sp else if (distance == 1) 18.sp else 16.sp,
+                            fontSize = if (isCurrent) 24.sp else if (distance == 1) 17.sp else 15.sp,
                             fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                             textAlign = TextAlign.Center,
                             maxLines = 2,
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
+                }
+            } else if (plainLyrics.isNotBlank()) {
+                Column(
+                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        plainLyrics,
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            } else {
+                Column(
+                    Modifier.weight(1f).fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text("Lirik tidak tersedia", color = Color.White.copy(alpha = 0.5f), fontSize = 16.sp)
                 }
             }
 
@@ -244,6 +262,79 @@ fun NowPlayingScreen(
     }
 }
 
+// Piringan vinyl berputar untuk layar Now Playing. Berputar dengan kecepatan
+// konstan saat lagu jalan (satu putaran 14 detik) dan berhenti di posisi
+// terakhir saat pause. Kilau cahaya di atasnya tidak ikut berputar supaya
+// putarannya terlihat, dan satu titik kecil di permukaan piringan jadi
+// penanda putaran saat label tengahnya simetris.
+@Composable
+private fun SpinningVinyl(artworkUrl: String, isPlaying: Boolean, sizeDp: Int) {
+    val rotation = remember { Animatable(0f) }
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            rotation.animateTo(
+                rotation.value + 360f,
+                animationSpec = tween(durationMillis = 14000, easing = LinearEasing)
+            )
+        }
+    }
+    val labelSize = (sizeDp * 0.38f).dp
+    Box(
+        Modifier.size(sizeDp.dp).shadow(28.dp, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier.fillMaxSize().graphicsLayer { rotationZ = rotation.value },
+            contentAlignment = Alignment.Center
+        ) {
+            Box(Modifier.fillMaxSize().clip(CircleShape).background(Color(0xFF141414)))
+            Canvas(Modifier.fillMaxSize()) {
+                val center = Offset(size.width / 2, size.height / 2)
+                val maxR = size.minDimension / 2
+                for (f in listOf(0.95f, 0.85f, 0.75f, 0.65f)) {
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.05f),
+                        radius = maxR * f,
+                        center = center,
+                        style = Stroke(width = 1f)
+                    )
+                }
+            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                Box(
+                    Modifier.padding(top = 10.dp).size(6.dp)
+                        .clip(CircleShape).background(Color.White.copy(alpha = 0.4f))
+                )
+            }
+            Box(
+                Modifier.size(labelSize).clip(CircleShape).background(Color(0xFF8AFF00)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (artworkUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = artworkUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text("♪", color = Color(0xFF050805), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF050805)))
+        }
+        Canvas(Modifier.fillMaxSize().clip(CircleShape)) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = 0.16f), Color.Transparent),
+                    center = Offset(size.width * 0.32f, size.height * 0.28f),
+                    radius = size.minDimension * 0.5f
+                )
+            )
+        }
+    }
+}
+
 // Latar gradasi ungu-biru-pink (cahaya nebula lembut di atas dasar gelap).
 @Composable
 private fun NowPlayingBackground() {
@@ -288,7 +379,7 @@ private fun NowPlayingBackground() {
 }
 
 @Composable
-private fun GlassGlyphButton(onClick: () -> Unit, glyph: String, fontSize: TextUnit) {
+fun GlassGlyphButton(onClick: () -> Unit, glyph: String, fontSize: TextUnit) {
     Surface(
         onClick = onClick,
         color = Color.White.copy(alpha = 0.10f),
@@ -327,11 +418,13 @@ private fun formatTime(ms: Long): String {
 fun NowPlayingScreenFromController(
     controller: MediaController?,
     lyrics: List<LyricLine>,
+    plainLyrics: String = "",
     onBack: () -> Unit,
     onMore: () -> Unit,
     favoriteTrack: OnlineTrack? = null,
     isFavorite: Boolean = false,
     onFavoriteToggle: () -> Unit = {},
+    onQueue: () -> Unit = {},
 ) {
     var positionMs by remember { mutableStateOf(0L) }
     var durationMs by remember { mutableStateOf(0L) }
@@ -369,6 +462,7 @@ fun NowPlayingScreenFromController(
         artist = artist,
         artworkUrl = artworkUrl,
         lyrics = lyrics,
+        plainLyrics = plainLyrics,
         positionMs = positionMs,
         durationMs = durationMs,
         isPlaying = isPlaying,
@@ -399,6 +493,7 @@ fun NowPlayingScreenFromController(
         favoriteTrack = favoriteTrack,
         isFavorite = isFavorite,
         onFavoriteToggle = onFavoriteToggle,
+        onQueue = onQueue,
     )
 }
 
