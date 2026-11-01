@@ -11,6 +11,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -86,6 +89,8 @@ private fun MainScreen() {
     var isPlaying by remember { mutableStateOf(false) }
     var nowTitle by remember { mutableStateOf("") }
     var nowArtist by remember { mutableStateOf("") }
+    var nowPositionMs by remember { mutableStateOf(0L) }
+    var nowDurationMs by remember { mutableStateOf(0L) }
 
     // Antrean lagu online: hasil pencarian terakhir + posisi lagu yang sedang jalan.
     // -1 artinya tidak ada antrean online aktif (mis. sedang memutar lagu lokal).
@@ -148,6 +153,8 @@ private fun MainScreen() {
                 isPlaying = c.isPlaying
                 nowTitle = c.mediaMetadata.title?.toString().orEmpty()
                 nowArtist = c.mediaMetadata.artist?.toString().orEmpty()
+                nowPositionMs = c.currentPosition
+                nowDurationMs = c.duration.coerceAtLeast(0)
             }
             delay(500)
         }
@@ -202,57 +209,80 @@ private fun MainScreen() {
         scope.launch { lyrics = fetchLyrics(song.artist, song.title) }
     }
 
-    // Saat satu lagu online habis, lanjut otomatis ke hasil berikutnya.
-    // Kalau satu lagu gagal dibuka, loncat ke lagu sesudahnya (bukan berhenti).
-    // Kalau antrean habis, ambil lagu terkait dari lagu terakhir dan lanjutkan
-    // (radio otomatis): YouTube via related NewPipe (jatuh ke Piped kalau kena
-    // bot check), Piped via related Piped. Lagu yang sudah ada di antrean
-    // tidak diulang.
+    // Maju satu lagu di antrean online. Kalau lagu berikutnya gagal dibuka,
+    // loncat ke sesudahnya. Kalau antrean habis, ambil lagu terkait dari lagu
+    // terakhir dan lanjutkan (radio otomatis): YouTube via related NewPipe
+    // (jatuh ke Piped kalau kena bot check), Piped via related Piped.
+    // Lagu yang sudah ada di antrean tidak diulang.
+    fun playOnlineNext() {
+        val q = onlineQueue
+        val i = onlineIndex
+        if (i < 0) return
+        scope.launch {
+            for (j in i + 1 until q.size) {
+                try {
+                    val url = resolveTrackUrl(q[j])
+                    playOnline(q, j, url)
+                    return@launch
+                } catch (e: Exception) {
+                    // Lagu ini gagal dibuka, coba lagu berikutnya.
+                }
+            }
+            val last = q.getOrNull(i)
+            if (last == null) {
+                onlineIndex = -1
+                return@launch
+            }
+            val related = try {
+                fetchRelatedTracks(last).filter { r -> q.none { isSameSong(it, r) } }
+            } catch (e: Exception) {
+                emptyList()
+            }
+            if (related.isEmpty()) {
+                onlineIndex = -1
+                return@launch
+            }
+            val newQueue = q + related
+            for (j in q.size until newQueue.size) {
+                try {
+                    val url = resolveTrackUrl(newQueue[j])
+                    playOnline(newQueue, j, url)
+                    return@launch
+                } catch (e: Exception) {
+                    // Lagu terkait ini gagal dibuka, coba berikutnya.
+                }
+            }
+            onlineIndex = -1
+        }
+    }
+
+    // Mundur satu lagu di antrean online; di lagu pertama, putar ulang lagu itu.
+    fun playOnlinePrev() {
+        val q = onlineQueue
+        val i = onlineIndex
+        if (i < 0) return
+        if (i - 1 < 0) {
+            controller?.seekTo(0)
+            return
+        }
+        scope.launch {
+            try {
+                val url = resolveTrackUrl(q[i - 1])
+                playOnline(q, i - 1, url)
+            } catch (e: Exception) {
+                // Lagu sebelumnya gagal dibuka, tetap di lagu sekarang.
+            }
+        }
+    }
+
+    // Saat satu lagu online habis, lanjut otomatis via playOnlineNext().
     DisposableEffect(controller) {
         val c = controller ?: return@DisposableEffect onDispose { }
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(state: Int) {
                 if (state != Player.STATE_ENDED) return
-                val q = onlineQueue
-                val i = onlineIndex
-                if (i < 0) return
-                scope.launch {
-                    for (j in i + 1 until q.size) {
-                        try {
-                            val url = resolveTrackUrl(q[j])
-                            playOnline(q, j, url)
-                            return@launch
-                        } catch (e: Exception) {
-                            // Lagu ini gagal dibuka, coba lagu berikutnya.
-                        }
-                    }
-                    // Antrean habis: lanjut ke lagu terkait dari lagu terakhir.
-                    val last = q.getOrNull(i)
-                    if (last == null) {
-                        onlineIndex = -1
-                        return@launch
-                    }
-                    val related = try {
-                        fetchRelatedTracks(last).filter { r -> q.none { isSameSong(it, r) } }
-                    } catch (e: Exception) {
-                        emptyList()
-                    }
-                    if (related.isEmpty()) {
-                        onlineIndex = -1
-                        return@launch
-                    }
-                    val newQueue = q + related
-                    for (j in q.size until newQueue.size) {
-                        try {
-                            val url = resolveTrackUrl(newQueue[j])
-                            playOnline(newQueue, j, url)
-                            return@launch
-                        } catch (e: Exception) {
-                            // Lagu terkait ini gagal dibuka, coba berikutnya.
-                        }
-                    }
-                    onlineIndex = -1
-                }
+                if (onlineIndex < 0) return
+                playOnlineNext()
             }
         }
         c.addListener(listener)
@@ -268,12 +298,15 @@ private fun MainScreen() {
                             title = nowTitle,
                             artist = nowArtist,
                             isPlaying = isPlaying,
+                            progress = if (nowDurationMs > 0) (nowPositionMs.toFloat() / nowDurationMs.toFloat()).coerceIn(0f, 1f) else 0f,
                             onToggle = {
                                 val c = controller
                                 if (c != null) {
                                     if (c.isPlaying) c.pause() else c.play()
                                 }
                             },
+                            onNext = { if (onlineIndex >= 0) playOnlineNext() else controller?.seekToNext() },
+                            onPrev = { if (onlineIndex >= 0) playOnlinePrev() else controller?.seekToPrevious() },
                             onOpen = { openNowPlaying() }
                         )
                     }
@@ -346,23 +379,41 @@ private fun MiniPlayerBar(
     title: String,
     artist: String,
     isPlaying: Boolean,
+    progress: Float,
     onToggle: () -> Unit,
+    onNext: () -> Unit,
+    onPrev: () -> Unit,
     onOpen: () -> Unit
 ) {
     Surface(
         color = Color(0xFF1B2B1E),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clickable { onOpen() }
     ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(artist, color = Color(0xFF9AA99D), fontSize = 12.sp, maxLines = 1)
+        Column {
+            Row(
+                Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(artist, color = Color(0xFF9AA99D), fontSize = 12.sp, maxLines = 1)
+                }
+                TextButton(onClick = onPrev) {
+                    Text("⏮", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+                TextButton(onClick = onToggle) {
+                    Text(if (isPlaying) "⏸" else "▶", color = Color(0xFF8AFF00), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+                TextButton(onClick = onNext) {
+                    Text("⏭", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
             }
-            TextButton(onClick = onToggle) {
-                Text(if (isPlaying) "PAUSE" else "PLAY", color = Color(0xFF8AFF00), fontWeight = FontWeight.Bold)
+            Box(
+                Modifier.fillMaxWidth().height(3.dp).background(Color.White.copy(alpha = 0.15f))
+            ) {
+                Box(
+                    Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(3.dp).background(Color(0xFF8AFF00))
+                )
             }
         }
     }
