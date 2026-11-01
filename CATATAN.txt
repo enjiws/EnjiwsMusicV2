@@ -1,0 +1,63 @@
+ENJIWS MUSIC — DIBANGUN ULANG DARI NOL
+=====================================
+
+Project ini menggantikan project lama yang sudah acak-acakan. Satu project
+utuh, bukan tambalan: semua layar, navigasi, service pemutar, dan fitur
+dibangun konsisten dari awal.
+
+ISI PROJECT:
+- app/src/main/java/com/enjiws/music/
+    MainActivity.kt       : navigasi (Lokal / Online / Now Playing),
+                            mini player, izin, koneksi ke service pemutar
+    PlaybackService.kt    : MediaSessionService + ExoPlayer (lagu tetap
+                            jalan saat pindah layar / keluar aplikasi,
+                            notifikasi pemutar otomatis)
+    LibraryScreen.kt      : daftar lagu lokal dari HP (MediaStore),
+                            ketuk lagu untuk memutar (next/prev jalan
+                            untuk seluruh daftar)
+    OnlineScreen.kt       : pencarian SoundCloud, YouTube, Apple Music,
+                            Audius + tombol UNDUH per lagu
+    NowPlayingScreen.kt   : desain baru (header kaca, artwork besar,
+                            lirik tersinkron LRCLIB, progress bar,
+                            bar kontrol kaca) + tombol kembali (‹)
+    Lyrics.kt             : ambil lirik tersinkron dari LRCLIB
+    DownloadHelper.kt     : ambil URL audio (NewPipeExtractor) +
+                            unduh lewat DownloadManager ke Musik/ENJIWS
+    Theme.kt              : tema gelap
+- app/src/main/AndroidManifest.xml : izin + service (tanpa icon launcher
+  custom, memakai default sistem supaya tidak ada resource hilang)
+- app/build.gradle.kts, build.gradle.kts, settings.gradle.kts,
+  gradle.properties       : konfigurasi build (AGP 8.6, Kotlin 2.0.21,
+                            Compose BOM 2024.10, Media3 1.4.1)
+- .github/workflows/build.yml : build APK otomatis di GitHub Actions
+
+YANG BERUBAH DARI PROJECT LAMA:
+- Tidak ada lagi layar Now Playing lama yang bikin kejebak: layar Now
+  Playing baru selalu punya tombol kembali, dan mini player selalu
+  terlihat saat ada lagu — jadi selalu ada jalan pulang.
+- Import lagu lokal resmi jadi fitur (tab "Lokal"), bukan tersembunyi.
+- Jamendo dihapus: API-nya butuh client_id khusus. Kalau kamu punya
+  client_id Jamendo, bilang saja, nanti ditambahkan lagi.
+- Tidak ada dependency material-icons: semua tombol memakai glyph teks,
+  jadi build tidak bisa gagal karena ikon hilang.
+
+CARA PAKAI (repo BARU, supaya project lama tidak ikut kotor):
+  1. Buat repo kosong baru di github.com (misal: EnjiwsMusicV2).
+  2. Di Termux:
+       mkdir -p ~/EnjiwsMusicV2
+       cd ~/EnjiwsMusicV2
+       unzip -o ~/storage/downloads/EnjiwsMusic_FromScratch.zip
+       git init -b main
+       git add .
+       git commit -m "Enjiws Music rebuilt from scratch"
+       git remote add origin https://github.com/enjiws/EnjiwsMusicV2.git
+       git push -u origin main
+     (saat push diminta password, pakai Personal Access Token GitHub.)
+  3. Buka tab Actions di repo, tunggu build hijau, download APK dari
+     Artifacts, install, lalu izinkan "Musik & audio" dan "Notifikasi".
+
+CATATAN:
+- File ini belum dikompilasi di sini; build pertama di GitHub Actions
+  adalah tesnya. Kalau merah, kirim baris yang diawali "e:" dari log.
+- Mengunduh konten YouTube bisa melanggar Ketentuan Layanan YouTube;
+  gunakan untuk pemakaian pribadi dan konten yang kamu punya haknya.
