@@ -63,18 +63,20 @@ private enum class Source { SoundCloud, YouTube, Apple, Audius }
 
 private suspend fun searchNewPipe(service: StreamingService, query: String, source: String): List<OnlineTrack> =
     withContext(Dispatchers.IO) {
-        val handler = service.searchQHFactory.fromQuery(query, emptyList(), "")
-        handler.initialPage.items.filterIsInstance<StreamInfoItem>().map { item ->
-            val thumb = item.thumbnails?.maxByOrNull { it.height }?.url
-                ?: item.thumbnails?.firstOrNull()?.url ?: ""
+        val handler = service.getSearchQHFactory().fromQuery(query, emptyList(), "")
+        val items = handler.getInitialPage().getItems().filterIsInstance<StreamInfoItem>()
+        items.map { item ->
+            val thumbs = item.getThumbnails()
+            val thumb = thumbs.maxByOrNull { it.getHeight() }?.getUrl()
+                ?: thumbs.firstOrNull()?.getUrl() ?: ""
             OnlineTrack(
-                title = item.name ?: "Unknown title",
-                artist = item.uploaderName ?: "Unknown artist",
+                title = item.getName() ?: "Unknown title",
+                artist = item.getUploaderName() ?: "Unknown artist",
                 artworkUrl = thumb,
-                durationSeconds = item.duration,
+                durationSeconds = item.getDuration(),
                 source = source,
-                youtubeUrl = if (source == "YouTube") item.url else "",
-                soundcloudUrl = if (source == "SoundCloud") item.url else ""
+                youtubeUrl = if (source == "YouTube") item.getUrl() else "",
+                soundcloudUrl = if (source == "SoundCloud") item.getUrl() else ""
             )
         }
     }

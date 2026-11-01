@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Environment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.schabi.newpipe.extractor.MediaFormat
 import org.schabi.newpipe.extractor.StreamingService
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.StreamInfo
@@ -20,24 +21,24 @@ suspend fun resolveStreamAudio(service: StreamingService, pageUrl: String): Stri
 suspend fun resolveStreamAudioDetailed(service: StreamingService, pageUrl: String): Pair<String, String> =
     withContext(Dispatchers.IO) {
         val info = StreamInfo.getInfo(service, pageUrl)
-        val all = info.audioStreams
-        val usable = all.filter { it.isUrl }
-        val progressive = usable.filter { it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }
-        val best = progressive.filter { it.format?.name == "M4A" || it.format?.name == "MP3" }
-            .maxByOrNull { it.averageBitrate }
-            ?: progressive.maxByOrNull { it.averageBitrate }
+        val all = info.getAudioStreams()
+        val usable = all.filter { it.isUrl() }
+        val progressive = usable.filter { it.getDeliveryMethod() == DeliveryMethod.PROGRESSIVE_HTTP }
+        val best = progressive.filter { it.getFormat() == MediaFormat.M4A || it.getFormat() == MediaFormat.MP3 }
+            .maxByOrNull { it.getAverageBitrate() }
+            ?: progressive.maxByOrNull { it.getAverageBitrate() }
             ?: throw IllegalStateException(
                 if (usable.isNotEmpty()) "Hanya tersedia stream HLS/DASH (butuh modul media3-exoplayer-hls)"
-                else "audio=${all.size}, url=${usable.size}, hls=${!info.hlsUrl.isNullOrBlank()}, dash=${!info.dashMpdUrl.isNullOrBlank()}"
+                else "audio=${all.size}, url=${usable.size}, hls=${!info.getHlsUrl().isNullOrBlank()}, dash=${!info.getDashMpdUrl().isNullOrBlank()}"
             )
-        val ext = when (best.format?.name) {
-            "M4A" -> "m4a"
-            "MP3" -> "mp3"
-            "WEBMA" -> "webm"
-            "OPUS" -> "opus"
+        val ext = when (best.getFormat()) {
+            MediaFormat.M4A -> "m4a"
+            MediaFormat.MP3 -> "mp3"
+            MediaFormat.WEBMA -> "webm"
+            MediaFormat.OPUS -> "opus"
             else -> "mp3"
         }
-        best.content to ext
+        best.getContent() to ext
     }
 
 fun sanitizeFileName(name: String): String =
