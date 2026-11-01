@@ -58,10 +58,11 @@ data class OnlineTrack(
     val audioUrl: String = "",
     val youtubeUrl: String = "",
     val soundcloudUrl: String = "",
-    val storeUrl: String = ""
+    val storeUrl: String = "",
+    val pipedId: String = ""
 )
 
-enum class Source { YouTube, Apple, Audius }
+enum class Source { YouTube, Apple, Audius, Piped }
 
 private suspend fun searchNewPipe(service: StreamingService, query: String, source: String): List<OnlineTrack> =
     withContext(Dispatchers.IO) {
@@ -166,6 +167,7 @@ fun friendlyError(e: Exception): String {
 // Ambil URL audio yang bisa diputar untuk satu lagu online.
 suspend fun resolveTrackUrl(track: OnlineTrack): String = when {
     track.youtubeUrl.isNotBlank() -> resolveStreamAudio(ServiceList.YouTube, track.youtubeUrl)
+    track.pipedId.isNotBlank() -> resolvePipedStream(track.pipedId)
     else -> track.audioUrl
 }
 
@@ -212,6 +214,9 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
             if (Source.Audius in selected) {
                 runCatching { found += searchAudius(q) }.onFailure { failed += "Audius" }
             }
+            if (Source.Piped in selected) {
+                runCatching { found += searchPiped(q) }.onFailure { failed += "Piped" }
+            }
             results = found
             searching = false
             status = if (found.isEmpty()) {
@@ -225,7 +230,7 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
     fun playTrack(track: OnlineTrack, index: Int) {
         scope.launch {
             try {
-                if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank()) {
+                if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.pipedId.isBlank()) {
                     if (track.storeUrl.isNotBlank()) {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(track.storeUrl)))
                     }
@@ -247,6 +252,7 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
                 status = "Menyiapkan unduhan: ${track.title}..."
                 val (url, ext) = when {
                     track.youtubeUrl.isNotBlank() -> resolveStreamAudioDetailed(ServiceList.YouTube, track.youtubeUrl)
+                    track.pipedId.isNotBlank() -> resolvePipedStreamDetailed(track.pipedId)
                     track.audioUrl.isNotBlank() -> track.audioUrl to "mp3"
                     else -> {
                         status = "Lagu ini tidak bisa diunduh."
@@ -285,6 +291,9 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
             TextButton(onClick = { toggle(Source.Audius) }) {
                 Text("Audius", color = if (Source.Audius in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
+            TextButton(onClick = { toggle(Source.Piped) }) {
+                Text("Piped", color = if (Source.Piped in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
+            }
         }
 
         Button(onClick = { searchAll() }, enabled = !searching, modifier = Modifier.fillMaxWidth()) {
@@ -306,11 +315,11 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
                     Column(Modifier.weight(1f)) {
                         Text(track.title, color = Color(0xFFF1F5F1), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                         Text(
-                            "${track.artist}  ·  ${if (track.durationSeconds > 0) "${track.durationSeconds / 60}:${(track.durationSeconds % 60).toString().padStart(2, '0')}  ·  " else ""}${track.source}${if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank()) " · BUKA LAGU" else " · PUTAR"}",
+                            "${track.artist}  ·  ${if (track.durationSeconds > 0) "${track.durationSeconds / 60}:${(track.durationSeconds % 60).toString().padStart(2, '0')}  ·  " else ""}${track.source}${if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.pipedId.isBlank()) " · BUKA LAGU" else " · PUTAR"}",
                             color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 1
                         )
                     }
-                    if (track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank()) {
+                    if (track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank() || track.pipedId.isNotBlank()) {
                         TextButton(onClick = { downloadTrack(track) }) {
                             Text("UNDUH", color = Color(0xFF8AFF00), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }

@@ -95,7 +95,7 @@ private fun MainScreen() {
     // sedang tidak tampil (mis. saat di Now Playing). Inilah yang membuat teks
     // pencarian dan hasilnya tidak hilang lagi saat pindah layar.
     val onlineQueryState = remember { mutableStateOf("") }
-    val onlineSelectedState = remember { mutableStateOf(setOf(Source.YouTube, Source.Apple, Source.Audius)) }
+    val onlineSelectedState = remember { mutableStateOf(setOf(Source.YouTube, Source.Apple, Source.Audius, Source.Piped)) }
     val onlineResultsState = remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
     val onlineStatusState = remember { mutableStateOf("Cari lagu dari YouTube, Apple Music, dan Audius.") }
 
