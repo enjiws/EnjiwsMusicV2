@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -60,7 +61,7 @@ data class OnlineTrack(
     val storeUrl: String = ""
 )
 
-private enum class Source { YouTube, Apple, Audius }
+enum class Source { YouTube, Apple, Audius }
 
 private suspend fun searchNewPipe(service: StreamingService, query: String, source: String): List<OnlineTrack> =
     withContext(Dispatchers.IO) {
@@ -169,14 +170,17 @@ suspend fun resolveTrackUrl(track: OnlineTrack): String = when {
 }
 
 @Composable
-fun OnlineScreen(onPlayReady: (queue: List<OnlineTrack>, index: Int, url: String) -> Unit) {
+fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<Set<Source>>, resultsState: MutableState<List<OnlineTrack>>, statusState: MutableState<String>, onPlayReady: (queue: List<OnlineTrack>, index: Int, url: String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var query by remember { mutableStateOf("") }
-    var selected by remember { mutableStateOf(setOf(Source.YouTube, Source.Apple, Source.Audius)) }
-    var results by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
-    var status by remember { mutableStateOf("Cari lagu dari YouTube, Apple Music, dan Audius.") }
+    // State pencarian diangkat ke MainScreen supaya tidak hilang saat pindah layar.
+    // Di sini tinggal dipakai lewat delegasi; sisanya (kode pencarian, putar, unduh)
+    // tidak berubah sama sekali.
+    var query by queryState
+    var selected by selectedState
+    var results by resultsState
+    var status by statusState
     var searching by remember { mutableStateOf(false) }
 
     fun toggle(source: Source) {

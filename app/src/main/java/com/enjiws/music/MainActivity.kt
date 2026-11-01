@@ -11,13 +11,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -35,7 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -94,6 +90,14 @@ private fun MainScreen() {
     // -1 artinya tidak ada antrean online aktif (mis. sedang memutar lagu lokal).
     var onlineQueue by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
     var onlineIndex by remember { mutableStateOf(-1) }
+
+    // State pencarian online diangkat ke sini supaya tetap ada walau layar Online
+    // sedang tidak tampil (mis. saat di Now Playing). Inilah yang membuat teks
+    // pencarian dan hasilnya tidak hilang lagi saat pindah layar.
+    val onlineQueryState = remember { mutableStateOf("") }
+    val onlineSelectedState = remember { mutableStateOf(setOf(Source.YouTube, Source.Apple, Source.Audius)) }
+    val onlineResultsState = remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
+    val onlineStatusState = remember { mutableStateOf("Cari lagu dari YouTube, Apple Music, dan Audius.") }
 
     // Izin akses musik (untuk tab Lokal).
     var audioGranted by remember {
@@ -265,35 +269,29 @@ private fun MainScreen() {
         }
     ) { padding ->
         Column(Modifier.padding(padding)) {
-            // Layar Lokal dan Online selalu dikomposisi; yang tidak aktif dibuat
-            // berukuran nol (tetap ada, tapi tak terlihat). Dengan begitu state-nya
-            // — teks pencarian, hasil, pilihan sumber — tidak hilang saat pindah
-            // layar, mis. ke Now Playing lalu kembali.
-            Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxSize().then(if (screen == AppScreen.Library) Modifier else Modifier.size(0.dp).clipToBounds())) {
-                    LibraryScreen(
-                        hasPermission = audioGranted,
-                        onRequestPermission = {
-                            audioPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
-                        },
-                        onPlayLocal = { songs, index -> playLocal(songs, index) }
-                    )
-                }
-                Box(Modifier.fillMaxSize().then(if (screen == AppScreen.Online) Modifier else Modifier.size(0.dp).clipToBounds())) {
-                    OnlineScreen(
-                        onPlayReady = { queue, index, url ->
-                            playOnline(queue, index, url)
-                        }
-                    )
-                }
-                if (screen == AppScreen.NowPlaying) {
-                    NowPlayingScreenFromController(
-                        controller = controller,
-                        lyrics = lyrics,
-                        onBack = { screen = previousScreen },
-                        onMore = { }
-                    )
-                }
+            when (screen) {
+                AppScreen.Library -> LibraryScreen(
+                    hasPermission = audioGranted,
+                    onRequestPermission = {
+                        audioPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
+                    },
+                    onPlayLocal = { songs, index -> playLocal(songs, index) }
+                )
+                AppScreen.Online -> OnlineScreen(
+                    queryState = onlineQueryState,
+                    selectedState = onlineSelectedState,
+                    resultsState = onlineResultsState,
+                    statusState = onlineStatusState,
+                    onPlayReady = { queue, index, url ->
+                        playOnline(queue, index, url)
+                    }
+                )
+                AppScreen.NowPlaying -> NowPlayingScreenFromController(
+                    controller = controller,
+                    lyrics = lyrics,
+                    onBack = { screen = previousScreen },
+                    onMore = { }
+                )
             }
         }
     }
