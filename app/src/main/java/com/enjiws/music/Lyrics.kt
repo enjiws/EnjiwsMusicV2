@@ -4,11 +4,12 @@ import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
+import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
 
-val httpClient = createAppHttpClient()
+val httpClient = OkHttpClient()
 
 data class LyricLine(val text: String, val timeMs: Long)
 

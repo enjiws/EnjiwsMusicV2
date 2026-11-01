@@ -388,7 +388,7 @@ private fun MainScreen() {
                     onFavoriteToggle = {
                         val t = if (onlineIndex >= 0) onlineQueue.getOrNull(onlineIndex) else null
                         if (t != null) PlaylistStore.toggleFavorite(t)
-                    }
+                    },
                     onQueue = { queueOrigin = screen; screen = AppScreen.Queue }
                 )
             }
