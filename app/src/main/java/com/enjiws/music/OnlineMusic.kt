@@ -280,38 +280,6 @@ private suspend fun searchYouTube(query: String): List<LegacyOnlineTrack> = with
         }
 }
 
-// URL stream kedaluwarsa dalam beberapa jam: selalu ambil ulang saat lagu diputar.
-private suspend fun resolveStreamAudio(service: StreamingService, pageUrl: String): String = withContext(Dispatchers.IO) {
-    resolveStreamAudioDetailed(service, pageUrl).first
-}
-
-// Sama seperti resolveStreamAudio, tapi ikut mengembalikan ekstensi file
-// (m4a/mp3/dll) supaya hasil unduhan tersimpan dengan format yang benar.
-private suspend fun resolveStreamAudioDetailed(service: StreamingService, pageUrl: String): Pair<String, String> = withContext(Dispatchers.IO) {
-    val info = StreamInfo.getInfo(service, pageUrl)
-    val all = info.audioStreams
-    val usable = all.filter { it.isUrl }
-    val progressive = usable.filter { it.deliveryMethod == DeliveryMethod.PROGRESSIVE_HTTP }
-    val best = progressive.filter { it.format == MediaFormat.M4A || it.format == MediaFormat.MP3 }
-        .maxByOrNull { it.averageBitrate }
-        ?: progressive.maxByOrNull { it.averageBitrate }
-        ?: throw IllegalStateException(
-            if (usable.isNotEmpty()) "Hanya tersedia stream HLS/DASH (butuh modul media3-exoplayer-hls)"
-            else "audio=${all.size}, url=${usable.size}, hls=${!info.hlsUrl.isNullOrBlank()}, dash=${!info.dashMpdUrl.isNullOrBlank()}"
-        )
-    val ext = when (best.format) {
-        MediaFormat.M4A -> "m4a"
-        MediaFormat.MP3 -> "mp3"
-        MediaFormat.WEBMA -> "webm"
-        MediaFormat.OPUS -> "opus"
-        else -> "mp3"
-    }
-    best.content to ext
-}
-
-private fun sanitizeFileName(name: String): String =
-    name.replace(Regex("[\\\\/:*?\"<>|]"), "-").trim().ifBlank { "track" }.take(100)
-
 private suspend fun searchSoundCloud(query: String): List<LegacyOnlineTrack> = withContext(Dispatchers.IO) {
     val sc = ServiceList.SoundCloud
     val handler = sc.searchQHFactory.fromQuery(
