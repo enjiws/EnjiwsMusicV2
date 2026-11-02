@@ -1,0 +1,20 @@
+ENJIWS MUSIC V2.2 - UNIFIED ONLINE SEARCH
+
+Included changes:
+- Adds SoundCloud as a searchable provider using the existing NewPipe Extractor integration.
+- SoundCloud results can be resolved for playback and sent to the existing DownloadManager flow.
+- Searches selected providers concurrently instead of waiting for each provider sequentially.
+- Adds a per-provider 22-second timeout; one unavailable provider no longer blocks successful providers.
+- Shows per-provider result counts and names of providers that failed.
+- Adds Select All / Clear source controls.
+- Prioritizes exact and partial title matches, then playable results.
+- Keeps source-specific entries separate so users can choose the provider/version they want.
+
+Existing local library, playlists, favorites, queue, and playback architecture are retained.
+
+IMPORTANT:
+- This ZIP contains the app/ directory only, matching the source ZIP supplied for this patch.
+- Extract into the repository root and allow app/ files to be overwritten.
+- Build with the repository's existing GitHub Actions workflow.
+- Build has not been executed in this environment because the repository root Gradle files and wrapper were not included in the uploaded source archive.
+- Apple Music results use official iTunes catalog preview URLs when available; otherwise the track opens its store page.

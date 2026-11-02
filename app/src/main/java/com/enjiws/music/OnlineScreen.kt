@@ -42,8 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import okhttp3.Request
 import org.json.JSONObject
 import org.schabi.newpipe.extractor.ServiceList
@@ -64,7 +68,7 @@ data class OnlineTrack(
     val pipedId: String = ""
 )
 
-enum class Source { YouTube, Apple, Audius, Piped }
+enum class Source { YouTube, SoundCloud, Apple, Audius, Piped }
 
 private suspend fun searchNewPipe(service: StreamingService, query: String, source: String): List<OnlineTrack> =
     withContext(Dispatchers.IO) {
@@ -84,7 +88,7 @@ private suspend fun searchNewPipe(service: StreamingService, query: String, sour
                 durationSeconds = item.getDuration(),
                 source = source,
                 youtubeUrl = if (source == "YouTube") item.getUrl() else "",
-                soundcloudUrl = ""
+                soundcloudUrl = if (source == "SoundCloud") item.getUrl() else ""
             )
         }
     }
@@ -168,9 +172,26 @@ fun friendlyError(e: Exception): String {
 
 // Ambil URL audio yang bisa diputar untuk satu lagu online.
 suspend fun resolveTrackUrl(track: OnlineTrack): String = when {
+    track.soundcloudUrl.isNotBlank() -> resolveStreamAudio(ServiceList.SoundCloud, track.soundcloudUrl)
     track.youtubeUrl.isNotBlank() -> resolveStreamAudio(ServiceList.YouTube, track.youtubeUrl)
     track.pipedId.isNotBlank() -> resolvePipedStream(track.pipedId)
     else -> track.audioUrl
+}
+
+private suspend fun searchSource(source: Source, query: String): List<OnlineTrack> = when (source) {
+    Source.YouTube -> searchNewPipe(ServiceList.YouTube, query, "YouTube")
+    Source.SoundCloud -> searchNewPipe(ServiceList.SoundCloud, query, "SoundCloud")
+    Source.Apple -> searchITunes(query)
+    Source.Audius -> searchAudius(query)
+    Source.Piped -> searchPiped(query)
+}
+
+private fun Source.displayName(): String = when (this) {
+    Source.YouTube -> "YouTube"
+    Source.SoundCloud -> "SoundCloud"
+    Source.Apple -> "Apple Music"
+    Source.Audius -> "Audius"
+    Source.Piped -> "Piped"
 }
 
 @Composable
@@ -195,38 +216,48 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
 
     fun searchAll() {
         val q = query.trim()
+        val providers = selected.toList()
         if (q.isBlank()) {
             status = "Tulis judul lagu / nama artis dulu."
             return
         }
-        if (selected.isEmpty()) {
+        if (providers.isEmpty()) {
             status = "Pilih minimal satu sumber dulu."
             return
         }
         scope.launch {
             searching = true
-            status = "Mencari \"$q\"..."
-            val found = mutableListOf<OnlineTrack>()
-            val failed = mutableListOf<String>()
-            if (Source.YouTube in selected) {
-                runCatching { found += searchNewPipe(ServiceList.YouTube, q, "YouTube") }
-                    .onFailure { failed += "YouTube" }
-            }
-            if (Source.Apple in selected) {
-                runCatching { found += searchITunes(q) }.onFailure { failed += "Apple Music" }
-            }
-            if (Source.Audius in selected) {
-                runCatching { found += searchAudius(q) }.onFailure { failed += "Audius" }
-            }
-            if (Source.Piped in selected) {
-                runCatching { found += searchPiped(q) }.onFailure { failed += "Piped" }
-            }
-            results = found
-            searching = false
-            status = if (found.isEmpty()) {
-                "Tidak ada hasil untuk \"$q\"."
-            } else {
-                "Ditemukan ${found.size} lagu." + if (failed.isNotEmpty()) " (${failed.joinToString()} gagal.)" else ""
+            status = "Mencari di ${providers.size} sumber secara bersamaan..."
+            try {
+                val responses = supervisorScope {
+                    providers.map { source ->
+                        async {
+                            source to runCatching {
+                                withTimeout(22_000L) { searchSource(source, q) }
+                            }
+                        }
+                    }.awaitAll()
+                }
+                val found = responses.flatMap { (_, result) -> result.getOrDefault(emptyList()) }
+                val failed = responses.filter { it.second.isFailure }.map { it.first.displayName() }
+                // Urutkan hasil yang paling relevan lebih dulu, tetapi pertahankan
+                // entri dari sumber berbeda agar pengguna bisa memilih versi stream-nya.
+                results = found.sortedWith(
+                    compareByDescending<OnlineTrack> { it.title.equals(q, ignoreCase = true) }
+                        .thenByDescending { it.title.contains(q, ignoreCase = true) }
+                        .thenByDescending { it.audioUrl.isNotBlank() || it.youtubeUrl.isNotBlank() || it.soundcloudUrl.isNotBlank() || it.pipedId.isNotBlank() }
+                )
+                val counts = responses.mapNotNull { (source, result) ->
+                    result.getOrNull()?.let { "${source.displayName()}: ${it.size}" }
+                }
+                status = when {
+                    found.isEmpty() && failed.size == providers.size -> "Semua sumber gagal diakses. Periksa koneksi atau coba lagi nanti."
+                    found.isEmpty() -> "Tidak ada hasil untuk \"$q\"." + if (failed.isNotEmpty()) " Gagal: ${failed.joinToString()}" else ""
+                    else -> "Ditemukan ${found.size} hasil · ${counts.joinToString(" · ")}" +
+                        if (failed.isNotEmpty()) " · Gagal: ${failed.joinToString()}" else ""
+                }
+            } finally {
+                searching = false
             }
         }
     }
@@ -234,7 +265,7 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
     fun playTrack(track: OnlineTrack, index: Int) {
         scope.launch {
             try {
-                if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.pipedId.isBlank()) {
+                if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.soundcloudUrl.isBlank() && track.pipedId.isBlank()) {
                     if (track.storeUrl.isNotBlank()) {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(track.storeUrl)))
                     }
@@ -255,6 +286,7 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
             try {
                 status = "Menyiapkan unduhan: ${track.title}..."
                 val (url, ext) = when {
+                    track.soundcloudUrl.isNotBlank() -> resolveStreamAudioDetailed(ServiceList.SoundCloud, track.soundcloudUrl)
                     track.youtubeUrl.isNotBlank() -> resolveStreamAudioDetailed(ServiceList.YouTube, track.youtubeUrl)
                     track.pipedId.isNotBlank() -> resolvePipedStreamDetailed(track.pipedId)
                     track.audioUrl.isNotBlank() -> track.audioUrl to "mp3"
@@ -290,14 +322,28 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
             TextButton(onClick = { toggle(Source.YouTube) }) {
                 Text("YouTube", color = if (Source.YouTube in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
+            TextButton(onClick = { toggle(Source.SoundCloud) }) {
+                Text("SoundCloud", color = if (Source.SoundCloud in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
+            }
             TextButton(onClick = { toggle(Source.Apple) }) {
                 Text("Apple", color = if (Source.Apple in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
+        }
+        Row {
             TextButton(onClick = { toggle(Source.Audius) }) {
                 Text("Audius", color = if (Source.Audius in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
             TextButton(onClick = { toggle(Source.Piped) }) {
                 Text("Piped", color = if (Source.Piped in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
+            }
+        }
+
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End) {
+            TextButton(onClick = { selected = Source.values().toSet() }, enabled = !searching) {
+                Text("PILIH SEMUA", color = Color(0xFF91D6A0), fontSize = 10.sp)
+            }
+            TextButton(onClick = { selected = emptySet() }, enabled = !searching) {
+                Text("KOSONGKAN", color = Color(0xFF9AA99D), fontSize = 10.sp)
             }
         }
 
@@ -320,7 +366,7 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
                     Column(Modifier.weight(1f)) {
                         Text(track.title, color = Color(0xFFF1F5F1), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                         Text(
-                            "${track.artist}  ·  ${if (track.durationSeconds > 0) "${track.durationSeconds / 60}:${(track.durationSeconds % 60).toString().padStart(2, '0')}  ·  " else ""}${track.source}${if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.pipedId.isBlank()) " · BUKA LAGU" else " · PUTAR"}",
+                            "${track.artist}  ·  ${if (track.durationSeconds > 0) "${track.durationSeconds / 60}:${(track.durationSeconds % 60).toString().padStart(2, '0')}  ·  " else ""}${track.source}${if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.soundcloudUrl.isBlank() && track.pipedId.isBlank()) " · BUKA LAGU" else " · PUTAR"}",
                             color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 1
                         )
                     }
@@ -338,7 +384,7 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
                     TextButton(onClick = { addTarget = track }) {
                         Text("+", color = Color(0xFF8AFF00), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
-                    if (track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank() || track.pipedId.isNotBlank()) {
+                    if (track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank() || track.soundcloudUrl.isNotBlank() || track.pipedId.isNotBlank()) {
                         TextButton(onClick = { downloadTrack(track) }) {
                             Text("UNDUH", color = Color(0xFF8AFF00), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
