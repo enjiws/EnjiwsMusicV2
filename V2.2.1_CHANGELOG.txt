@@ -1,0 +1,9 @@
+Enjiws Music V2.2.1 - UI Polish
+
+- Fixed Online screen layout so the results LazyColumn uses the remaining available height.
+- Search results now scroll independently above the persistent mini-player and bottom navigation.
+- Reduced vertical spacing in the search header and source selectors.
+- Compact search button and status/help text to preserve more room for results.
+- Search, source selection, playback, favorites, playlists, and downloads logic are unchanged.
+
+Build status: source patch only; run GitHub Actions to verify compilation and APK output.

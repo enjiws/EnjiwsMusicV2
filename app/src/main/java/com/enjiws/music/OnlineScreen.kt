@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -305,9 +306,9 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
         Text("Online", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(6.dp))
 
         OutlinedTextField(
             value = query,
@@ -316,29 +317,29 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(2.dp))
 
-        Row {
-            TextButton(onClick = { toggle(Source.YouTube) }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { toggle(Source.YouTube) }, modifier = Modifier.height(34.dp)) {
                 Text("YouTube", color = if (Source.YouTube in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
-            TextButton(onClick = { toggle(Source.SoundCloud) }) {
+            TextButton(onClick = { toggle(Source.SoundCloud) }, modifier = Modifier.height(34.dp)) {
                 Text("SoundCloud", color = if (Source.SoundCloud in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
-            TextButton(onClick = { toggle(Source.Apple) }) {
+            TextButton(onClick = { toggle(Source.Apple) }, modifier = Modifier.height(34.dp)) {
                 Text("Apple", color = if (Source.Apple in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
         }
-        Row {
-            TextButton(onClick = { toggle(Source.Audius) }) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { toggle(Source.Audius) }, modifier = Modifier.height(34.dp)) {
                 Text("Audius", color = if (Source.Audius in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
-            TextButton(onClick = { toggle(Source.Piped) }) {
+            TextButton(onClick = { toggle(Source.Piped) }, modifier = Modifier.height(34.dp)) {
                 Text("Piped", color = if (Source.Piped in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End) {
+        Row(Modifier.fillMaxWidth().height(32.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { selected = Source.values().toSet() }, enabled = !searching) {
                 Text("PILIH SEMUA", color = Color(0xFF91D6A0), fontSize = 10.sp)
             }
@@ -347,15 +348,19 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
             }
         }
 
-        Button(onClick = { searchAll() }, enabled = !searching, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { searchAll() }, enabled = !searching, modifier = Modifier.fillMaxWidth().height(44.dp)) {
             Text(if (searching) "MENCARI..." else "CARI")
         }
-        Spacer(Modifier.height(8.dp))
-        Text(status, color = Color(0xFF9AA99D), fontSize = 11.sp)
-        Text("Ketuk lagu untuk memutar (otomatis lanjut ke hasil berikutnya), tombol UNDUH untuk menyimpan ke folder Musik/ENJIWS.", color = Color(0xFF9AA99D), fontSize = 10.sp)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(5.dp))
+        Text(status, color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 2)
+        Text("Ketuk lagu untuk memutar · UNDUH untuk menyimpan ke Musik/ENJIWS.", color = Color(0xFF9AA99D), fontSize = 10.sp, maxLines = 1)
+        Spacer(Modifier.height(4.dp))
 
-        LazyColumn(Modifier.fillMaxSize()) {
+        // Sisa tinggi layar diberikan ke daftar agar tidak tertutup mini-player/navigation bar.
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 10.dp)
+        ) {
             itemsIndexed(results) { index, track ->
                 Row(
                     Modifier.fillMaxWidth().clickable { playTrack(track, index) }.padding(vertical = 8.dp),
