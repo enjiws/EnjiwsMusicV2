@@ -1,0 +1,14 @@
+Enjiws Music V2.2.2 - Now Playing UI Polish
+
+- Reduced vinyl artwork size and tightened vertical spacing.
+- Refined empty-lyrics placeholder.
+- Replaced Material Slider with a compact custom progress track; tapping and dragging seek remain supported.
+- Increased playback-position refresh frequency to 250 ms for a more fluid elapsed-time display.
+- Reduced control dock and play button proportions.
+- Shifted background glow to a restrained dark-green palette.
+- Playback, queue, favorite, shuffle, repeat and lyrics data logic remain unchanged.
+
+Build status: source patch only. Run GitHub Actions to verify compilation and test seeking on device.
+
+V2.2.2 hotfix:
+- Removed an invalid explicit import of Modifier.weight from OnlineScreen.kt. The weight modifier is resolved from the enclosing ColumnScope.

@@ -1,6 +1,11 @@
 package com.enjiws.music
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -93,7 +98,7 @@ fun NowPlayingScreen(
             Modifier.fillMaxSize().padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(12.dp))
 
             // Header: kembali | Now Playing / Sedang Diputar | ...
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -115,19 +120,19 @@ fun NowPlayingScreen(
                 GlassGlyphButton(onClick = onMore, glyph = "•••", fontSize = 16.sp)
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(14.dp))
 
             // Piringan vinyl berputar (menggantikan thumbnail kotak besar).
             // Berputar saat lagu jalan, berhenti saat pause. Cover lagu jadi
             // label tengah piringan; kalau tidak ada cover, label hijau neon.
-            SpinningVinyl(artworkUrl = artworkUrl, isPlaying = isPlaying, sizeDp = 200)
+            SpinningVinyl(artworkUrl = artworkUrl, isPlaying = isPlaying, sizeDp = 176)
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             Text(
                 title.ifBlank { "Unknown title" },
                 color = Color.White,
-                fontSize = 22.sp,
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 maxLines = 1
@@ -141,7 +146,7 @@ fun NowPlayingScreen(
                 maxLines = 1
             )
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(12.dp))
 
             // Lirik: tersinkron (5 baris di sekitar baris aktif) kalau ada;
             // kalau tidak, tampilkan lirik biasa yang bisa digulir; kalau
@@ -189,7 +194,10 @@ fun NowPlayingScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text("Lirik tidak tersedia", color = Color.White.copy(alpha = 0.5f), fontSize = 16.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("♪", color = Color(0xFF8AFF00).copy(alpha = 0.75f), fontSize = 24.sp)
+                        Text("Lirik belum tersedia", color = Color.White.copy(alpha = 0.48f), fontSize = 14.sp)
+                    }
                 }
             }
 
@@ -200,15 +208,10 @@ fun NowPlayingScreen(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold
             )
-            Slider(
-                value = positionMs.toFloat(),
-                onValueChange = { onSeek(it.toLong()) },
-                valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color(0xFF8AFF00),
-                    inactiveTrackColor = Color.White.copy(alpha = 0.25f)
-                ),
+            SmoothProgressBar(
+                positionMs = positionMs,
+                durationMs = durationMs,
+                onSeek = onSeek,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(10.dp))
@@ -221,7 +224,7 @@ fun NowPlayingScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -237,7 +240,7 @@ fun NowPlayingScreen(
                         shape = CircleShape,
                         color = Color.White.copy(alpha = 0.16f),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
-                        modifier = Modifier.size(72.dp)
+                        modifier = Modifier.size(64.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
@@ -257,8 +260,63 @@ fun NowPlayingScreen(
                     )
                 }
             }
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(12.dp))
         }
+    }
+}
+
+@Composable
+private fun SmoothProgressBar(
+    positionMs: Long,
+    durationMs: Long,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val safeDuration = durationMs.coerceAtLeast(1L)
+    fun seekAt(x: Float, width: Float) {
+        if (width > 0f) {
+            onSeek((x.coerceIn(0f, width) / width * safeDuration).toLong())
+        }
+    }
+    Canvas(
+        modifier = modifier
+            .height(30.dp)
+            .pointerInput(safeDuration) {
+                detectTapGestures { tap -> seekAt(tap.x, size.width.toFloat()) }
+            }
+            .pointerInput(safeDuration) {
+                detectDragGestures(
+                    onDragStart = { point -> seekAt(point.x, size.width.toFloat()) },
+                    onDrag = { change, _ ->
+                        seekAt(change.position.x, size.width.toFloat())
+                        change.consume()
+                    }
+                )
+            }
+    ) {
+        val trackHeight = 5.dp.toPx()
+        val cy = size.height / 2f
+        val progress = (positionMs.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
+        val playedWidth = size.width * progress
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.20f),
+            topLeft = Offset(0f, cy - trackHeight / 2f),
+            size = Size(size.width, trackHeight),
+            cornerRadius = CornerRadius(trackHeight / 2f)
+        )
+        if (playedWidth > 0f) {
+            drawRoundRect(
+                color = Color(0xFF8AFF00),
+                topLeft = Offset(0f, cy - trackHeight / 2f),
+                size = Size(playedWidth, trackHeight),
+                cornerRadius = CornerRadius(trackHeight / 2f)
+            )
+        }
+        drawCircle(
+            color = Color(0xFF8AFF00),
+            radius = 5.dp.toPx(),
+            center = Offset(playedWidth.coerceIn(5.dp.toPx(), size.width - 5.dp.toPx()), cy)
+        )
     }
 }
 
@@ -352,7 +410,7 @@ private fun NowPlayingBackground() {
             Modifier.size(340.dp).offset(180.dp, 120.dp)
                 .background(
                     Brush.radialGradient(
-                        listOf(Color(0xFFFFEA00).copy(alpha = 0.45f), Color.Transparent)
+                        listOf(Color(0xFF245A25).copy(alpha = 0.28f), Color.Transparent)
                     ),
                     CircleShape
                 )
@@ -361,7 +419,7 @@ private fun NowPlayingBackground() {
             Modifier.size(300.dp).offset((-100).dp, 420.dp)
                 .background(
                     Brush.radialGradient(
-                        listOf(Color(0xFF76FF03).copy(alpha = 0.45f), Color.Transparent)
+                        listOf(Color(0xFF286B28).copy(alpha = 0.30f), Color.Transparent)
                     ),
                     CircleShape
                 )
@@ -370,7 +428,7 @@ private fun NowPlayingBackground() {
             Modifier.size(260.dp).offset(200.dp, 560.dp)
                 .background(
                     Brush.radialGradient(
-                        listOf(Color(0xFF00E676).copy(alpha = 0.40f), Color.Transparent)
+                        listOf(Color(0xFF006B45).copy(alpha = 0.28f), Color.Transparent)
                     ),
                     CircleShape
                 )
@@ -453,7 +511,7 @@ fun NowPlayingScreenFromController(
                 artist = meta.artist?.toString().orEmpty()
                 artworkUrl = meta.artworkUri?.toString().orEmpty()
             }
-            delay(500)
+            delay(250)
         }
     }
 
