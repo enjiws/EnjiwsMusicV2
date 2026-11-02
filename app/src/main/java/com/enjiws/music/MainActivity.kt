@@ -360,7 +360,7 @@ private fun MainScreen() {
             }
         }
     ) { padding ->
-        Column(Modifier.padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding)) {
             when (screen) {
                 AppScreen.Library -> LibraryScreen(
                     hasPermission = audioGranted,

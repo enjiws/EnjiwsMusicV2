@@ -1,0 +1,8 @@
+Enjiws Music V2.2.4 - Scaffold and Online List Layout Fix
+
+- MainActivity Scaffold content Column now explicitly fills the available content area before applying Scaffold insets.
+- Online results list receives additional bottom content padding so the final row can scroll fully clear of the persistent bottom navigation area.
+- Keeps the V2.2.3 three-dot per-track download menu and prior Now Playing polish unchanged.
+- No playback, search, favorite, playlist, or download logic changed.
+
+Build status: source patch only. Run GitHub Actions and verify the final result row can be scrolled completely above the bottom navigation.

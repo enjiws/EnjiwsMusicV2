@@ -360,7 +360,7 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
         // Sisa tinggi layar diberikan ke daftar agar tidak tertutup mini-player/navigation bar.
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 10.dp)
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 28.dp)
         ) {
             itemsIndexed(results) { index, track ->
                 Row(
