@@ -1,0 +1,9 @@
+Enjiws Music V2.2.3 - Compact Result Actions
+
+- Moved the per-track UNDUH action into a three-dot overflow menu.
+- Kept favorite and add-to-playlist actions visible.
+- Added a compact overflow menu with an Unduh action.
+- Updated helper text to explain the menu.
+- Preserves the previous V2.2.2 Now Playing polish and V2.2.1 Online layout fixes.
+
+Build status: source patch only; run GitHub Actions and verify menu/download on device.

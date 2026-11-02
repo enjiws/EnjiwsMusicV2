@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -352,7 +354,7 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
         }
         Spacer(Modifier.height(5.dp))
         Text(status, color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 2)
-        Text("Ketuk lagu untuk memutar · UNDUH untuk menyimpan ke Musik/ENJIWS.", color = Color(0xFF9AA99D), fontSize = 10.sp, maxLines = 1)
+        Text("Ketuk lagu untuk memutar · Opsi lainnya ada di menu ⋮.", color = Color(0xFF9AA99D), fontSize = 10.sp, maxLines = 1)
         Spacer(Modifier.height(4.dp))
 
         // Sisa tinggi layar diberikan ke daftar agar tidak tertutup mini-player/navigation bar.
@@ -388,9 +390,24 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
                     TextButton(onClick = { addTarget = track }) {
                         Text("+", color = Color(0xFF8AFF00), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
-                    if (track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank() || track.soundcloudUrl.isNotBlank() || track.pipedId.isNotBlank()) {
-                        TextButton(onClick = { downloadTrack(track) }) {
-                            Text("UNDUH", color = Color(0xFF8AFF00), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    val canDownload = track.audioUrl.isNotBlank() || track.youtubeUrl.isNotBlank() || track.soundcloudUrl.isNotBlank() || track.pipedId.isNotBlank()
+                    var menuExpanded by remember(track) { mutableStateOf(false) }
+                    Box {
+                        TextButton(onClick = { menuExpanded = true }) {
+                            Text("⋮", color = Color(0xFF8AFF00), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Unduh") },
+                                enabled = canDownload,
+                                onClick = {
+                                    menuExpanded = false
+                                    downloadTrack(track)
+                                }
+                            )
                         }
                     }
                 }
