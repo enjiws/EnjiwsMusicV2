@@ -388,7 +388,8 @@ private fun MainScreen() {
                     queue = onlineQueue,
                     currentIndex = onlineIndex,
                     onBack = { screen = queueOrigin },
-                    onPlayReady = { queue, index, url -> playOnline(queue, index, url) }
+                    onPlayReady = { queue, index, url -> playOnline(queue, index, url) },
+                    onClearUpcoming = { if (onlineIndex >= 0) onlineQueue = onlineQueue.take(onlineIndex + 1) }
                 )
                 AppScreen.NowPlaying -> NowPlayingScreenFromController(
                     controller = controller,

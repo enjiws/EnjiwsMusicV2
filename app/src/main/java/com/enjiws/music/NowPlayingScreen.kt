@@ -116,7 +116,6 @@ fun NowPlayingScreen(
                         )
                     }
                 }
-                GlassGlyphButton(onClick = onQueue, glyph = "≡", fontSize = 20.sp)
                 GlassGlyphButton(onClick = onMore, glyph = "•••", fontSize = 16.sp)
             }
 
@@ -135,12 +134,12 @@ fun NowPlayingScreen(
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                maxLines = 1
+                maxLines = 2
             )
             Spacer(Modifier.height(2.dp))
             Text(
                 artist.ifBlank { "Unknown artist" },
-                color = Color.White.copy(alpha = 0.6f),
+                color = Color.White.copy(alpha = 0.7f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
                 maxLines = 1
@@ -148,7 +147,7 @@ fun NowPlayingScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            // Lirik: tersinkron (5 baris di sekitar baris aktif) kalau ada;
+            // Lirik: tersinkron (7 baris di sekitar baris aktif) kalau ada;
             // kalau tidak, tampilkan lirik biasa yang bisa digulir; kalau
             // tidak ada sama sekali, tampilkan keterangan.
             if (lyrics.isNotEmpty()) {
@@ -157,8 +156,8 @@ fun NowPlayingScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    val start = (currentLineIndex - 2).coerceAtLeast(0)
-                    val end = (start + 5).coerceAtMost(lyrics.size)
+                    val start = (currentLineIndex - 3).coerceAtLeast(0)
+                    val end = (start + 7).coerceAtMost(lyrics.size)
                     for (i in start until end) {
                         val distance = kotlin.math.abs(i - currentLineIndex)
                         val isCurrent = i == currentLineIndex
@@ -259,6 +258,12 @@ fun NowPlayingScreen(
                         tint = if (repeatMode == RepeatMode.OFF) Color.White.copy(alpha = 0.45f) else Color.White
                     )
                 }
+            }
+            Spacer(Modifier.height(10.dp))
+            // Bar antrean di bawah (menggantikan tombol ≡ di header):
+            // diketuk untuk membuka layar Antrean.
+            TextButton(onClick = onQueue, modifier = Modifier.fillMaxWidth()) {
+                Text("∧ QUEUE", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(12.dp))
         }

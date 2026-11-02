@@ -13,6 +13,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,11 +41,14 @@ fun QueueScreen(
     queue: List<OnlineTrack>,
     currentIndex: Int,
     onBack: () -> Unit,
-    onPlayReady: (queue: List<OnlineTrack>, index: Int, url: String) -> Unit
+    onPlayReady: (queue: List<OnlineTrack>, index: Int, url: String) -> Unit,
+    onClearUpcoming: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf("") }
     var related by remember { mutableStateOf<List<OnlineTrack>?>(null) }
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var saveName by remember { mutableStateOf("Antrean") }
     val current = if (currentIndex >= 0) queue.getOrNull(currentIndex) else null
     val upcoming = if (currentIndex >= 0 && currentIndex + 1 < queue.size)
         queue.subList(currentIndex + 1, queue.size) else emptyList()
@@ -96,6 +102,24 @@ fun QueueScreen(
             GlassGlyphButton(onClick = onBack, glyph = "‹", fontSize = 28.sp)
             Spacer(Modifier.width(12.dp))
             Text("Antrean", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            if (current != null) {
+                TextButton(
+                    onClick = {
+                        onClearUpcoming()
+                        status = "Antrean berikutnya dikosongkan."
+                    },
+                    enabled = upcoming.isNotEmpty()
+                ) {
+                    Text("CLEAR", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                TextButton(onClick = {
+                    saveName = "Antrean"
+                    showSaveDialog = true
+                }) {
+                    Text("SAVE", color = Color(0xFF8AFF00), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
         if (status.isNotBlank()) {
@@ -153,6 +177,44 @@ fun QueueScreen(
                     QueueRow(track = rec, highlighted = false) { playRecommendation(rec) }
                 }
             }
+        }
+
+        // Dialog simpan antrean (lagu yang sedang diputar + berikutnya)
+        // sebagai playlist baru.
+        if (showSaveDialog) {
+            AlertDialog(
+                onDismissRequest = { showSaveDialog = false },
+                title = { Text("Simpan antrean") },
+                text = {
+                    Column {
+                        Text("Antrean saat ini akan disimpan sebagai playlist baru.")
+                        Spacer(Modifier.height(8.dp))
+                        TextField(
+                            value = saveName,
+                            onValueChange = { saveName = it },
+                            singleLine = true,
+                            placeholder = { Text("Nama playlist") }
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val name = saveName.ifBlank { "Antrean" }
+                        val playlist = PlaylistStore.createPlaylist(name)
+                        val toSave = if (currentIndex >= 0) queue.drop(currentIndex) else queue
+                        toSave.forEach { PlaylistStore.addToPlaylist(playlist.id, it) }
+                        status = "Antrean disimpan ke playlist \"$name\"."
+                        showSaveDialog = false
+                    }) {
+                        Text("SIMPAN", color = Color(0xFF8AFF00), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSaveDialog = false }) {
+                        Text("BATAL")
+                    }
+                }
+            )
         }
     }
 }
