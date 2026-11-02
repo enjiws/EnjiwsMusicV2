@@ -3,6 +3,7 @@ package com.enjiws.music
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -372,10 +373,24 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(track.title, color = Color(0xFFF1F5F1), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 2)
-                        Text(
-                            "${track.artist}  ·  ${if (track.durationSeconds > 0) "${track.durationSeconds / 60}:${(track.durationSeconds % 60).toString().padStart(2, '0')}  ·  " else ""}${track.source}${if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.soundcloudUrl.isBlank() && track.pipedId.isBlank()) " · BUKA LAGU" else " · PUTAR"}",
-                            color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 1
-                        )
+                        // Chip sumber (YouTube/Piped/dll) supaya asal lagu
+                        // langsung terlihat, bukan cuma teks di subjudul.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (track.source.isNotBlank()) {
+                                Box(
+                                    Modifier.border(1.dp, Color(0xFF8AFF00), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
+                                    Text(track.source, color = Color(0xFF8AFF00), fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                }
+                                Spacer(Modifier.width(6.dp))
+                            }
+                            Text(
+                                "${track.artist}  ·  ${if (track.durationSeconds > 0) "${track.durationSeconds / 60}:${(track.durationSeconds % 60).toString().padStart(2, '0')}  ·  " else ""}${if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.soundcloudUrl.isBlank() && track.pipedId.isBlank()) "BUKA LAGU" else "PUTAR"}",
+                                color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 1,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
                     TextButton(onClick = {
                         val added = PlaylistStore.toggleFavorite(track)
