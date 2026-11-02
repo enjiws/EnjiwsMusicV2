@@ -41,7 +41,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-private data class OnlineTrack(
+private data class LegacyOnlineTrack(
     val title: String,
     val artist: String,
     val audioUrl: String,
@@ -62,7 +62,7 @@ fun OnlineMusicScreen(controllerProvider: () -> MediaController?) {
     var catalogQuery by remember { mutableStateOf("") }
     var clientId by remember { mutableStateOf("415f93ab") }
     var streamUrl by remember { mutableStateOf("") }
-    var tracks by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
+    var tracks by remember { mutableStateOf<List<LegacyOnlineTrack>>(emptyList()) }
     var status by remember { mutableStateOf("Cari katalog global: SoundCloud, YouTube, Apple Music, Jamendo, dan Audius.") }
     var busy by remember { mutableStateOf(false) }
 
@@ -89,7 +89,7 @@ fun OnlineMusicScreen(controllerProvider: () -> MediaController?) {
 
     // Unduh lagu ke folder Musik/ENJIWS lewat DownloadManager (jalan di
     // background, jadi tetap bisa sambil memutar lagu lain).
-    fun downloadTrack(track: OnlineTrack) {
+    fun downloadTrack(track: LegacyOnlineTrack) {
         scope.launch {
             try {
                 status = "Menyiapkan unduhan: ${track.title}..."
@@ -259,7 +259,7 @@ private fun InputPanel(value: String, onValueChange: (String) -> Unit, hint: Str
     }
 }
 
-private suspend fun searchYouTube(query: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
+private suspend fun searchYouTube(query: String): List<LegacyOnlineTrack> = withContext(Dispatchers.IO) {
     val yt = ServiceList.YouTube
     val handler = yt.searchQHFactory.fromQuery(
         query, listOf(YoutubeSearchQueryHandlerFactory.MUSIC_SONGS), ""
@@ -268,7 +268,7 @@ private suspend fun searchYouTube(query: String): List<OnlineTrack> = withContex
         .filterIsInstance<StreamInfoItem>()
         .take(20)
         .map {
-            OnlineTrack(
+            LegacyOnlineTrack(
                 title = it.name,
                 artist = it.uploaderName ?: "YouTube",
                 audioUrl = "",
@@ -312,7 +312,7 @@ private suspend fun resolveStreamAudioDetailed(service: StreamingService, pageUr
 private fun sanitizeFileName(name: String): String =
     name.replace(Regex("[\\\\/:*?\"<>|]"), "-").trim().ifBlank { "track" }.take(100)
 
-private suspend fun searchSoundCloud(query: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
+private suspend fun searchSoundCloud(query: String): List<LegacyOnlineTrack> = withContext(Dispatchers.IO) {
     val sc = ServiceList.SoundCloud
     val handler = sc.searchQHFactory.fromQuery(
         query, listOf(SoundcloudSearchQueryHandlerFactory.TRACKS), ""
@@ -321,7 +321,7 @@ private suspend fun searchSoundCloud(query: String): List<OnlineTrack> = withCon
         .filterIsInstance<StreamInfoItem>()
         .take(20)
         .map {
-            OnlineTrack(
+            LegacyOnlineTrack(
                 title = it.name,
                 artist = it.uploaderName ?: "SoundCloud",
                 audioUrl = "",
@@ -333,10 +333,10 @@ private suspend fun searchSoundCloud(query: String): List<OnlineTrack> = withCon
         }
 }
 
-private suspend fun searchAppleCatalog(query: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
+private suspend fun searchAppleCatalog(query: String): List<LegacyOnlineTrack> = withContext(Dispatchers.IO) {
     val encodedQuery = URLEncoder.encode(query, "UTF-8")
     val storefronts = listOf("us", "id", "gb", "jp", "kr")
-    val collected = mutableListOf<OnlineTrack>()
+    val collected = mutableListOf<LegacyOnlineTrack>()
     for (country in storefronts) {
         val endpoint = "https://itunes.apple.com/search?term=$encodedQuery&entity=song&limit=15&country=$country"
         val json = runCatching { httpGet(endpoint) }.getOrNull() ?: continue
@@ -348,7 +348,7 @@ private suspend fun searchAppleCatalog(query: String): List<OnlineTrack> = withC
             val storeUrl = item.optString("trackViewUrl")
             if (title.isNotBlank() && artist.isNotBlank() && storeUrl.startsWith("https://")) {
                 collected.add(
-                    OnlineTrack(
+                    LegacyOnlineTrack(
                         title = title,
                         artist = artist,
                         audioUrl = "",
@@ -364,7 +364,7 @@ private suspend fun searchAppleCatalog(query: String): List<OnlineTrack> = withC
     collected.distinctBy { it.title.lowercase() + ":" + it.artist.lowercase() }
 }
 
-private suspend fun searchJamendo(query: String, clientId: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
+private suspend fun searchJamendo(query: String, clientId: String): List<LegacyOnlineTrack> = withContext(Dispatchers.IO) {
     val encodedQuery = URLEncoder.encode(query, "UTF-8")
     val encodedId = URLEncoder.encode(clientId, "UTF-8")
     val endpoint = "https://api.jamendo.com/v3.0/tracks/?client_id=$encodedId&format=json&limit=20&audioformat=mp32&search=$encodedQuery"
@@ -375,7 +375,7 @@ private suspend fun searchJamendo(query: String, clientId: String): List<OnlineT
             val item = results.optJSONObject(i) ?: continue
             val audio = item.optString("audio")
             if (audio.startsWith("http")) add(
-                OnlineTrack(
+                LegacyOnlineTrack(
                     title = item.optString("name", "Unknown title"),
                     artist = item.optString("artist_name", "Unknown artist"),
                     audioUrl = audio,
@@ -388,7 +388,7 @@ private suspend fun searchJamendo(query: String, clientId: String): List<OnlineT
     }
 }
 
-private suspend fun searchAudius(query: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
+private suspend fun searchAudius(query: String): List<LegacyOnlineTrack> = withContext(Dispatchers.IO) {
     val encodedQuery = URLEncoder.encode(query, "UTF-8")
     val endpoint = "https://api.audius.co/v1/tracks/search?query=$encodedQuery&limit=20&sort_method=relevant&app_name=EnjiwsMusic"
     val json = httpGet(endpoint)
@@ -401,7 +401,7 @@ private suspend fun searchAudius(query: String): List<OnlineTrack> = withContext
             val user = item.optJSONObject("user")
             val artwork = item.optJSONObject("artwork")
             add(
-                OnlineTrack(
+                LegacyOnlineTrack(
                     title = item.optString("title", "Unknown title"),
                     artist = user?.optString("name", "Unknown artist") ?: "Unknown artist",
                     audioUrl = "https://api.audius.co/v1/tracks/$id/stream?app_name=EnjiwsMusic",
