@@ -19,6 +19,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -35,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -92,6 +98,7 @@ private fun MainScreen() {
     var isPlaying by remember { mutableStateOf(false) }
     var nowTitle by remember { mutableStateOf("") }
     var nowArtist by remember { mutableStateOf("") }
+    var nowArtwork by remember { mutableStateOf("") }
     var nowPositionMs by remember { mutableStateOf(0L) }
     var nowDurationMs by remember { mutableStateOf(0L) }
 
@@ -172,6 +179,7 @@ private fun MainScreen() {
                 isPlaying = c.isPlaying
                 nowTitle = c.mediaMetadata.title?.toString().orEmpty()
                 nowArtist = c.mediaMetadata.artist?.toString().orEmpty()
+                nowArtwork = c.mediaMetadata.artworkUri?.toString().orEmpty()
                 nowPositionMs = c.currentPosition
                 nowDurationMs = c.duration.coerceAtLeast(0)
             }
@@ -324,6 +332,7 @@ private fun MainScreen() {
                         MiniPlayerBar(
                             title = nowTitle,
                             artist = nowArtist,
+                            artworkUrl = nowArtwork,
                             isPlaying = isPlaying,
                             progress = if (nowDurationMs > 0) (nowPositionMs.toFloat() / nowDurationMs.toFloat()).coerceIn(0f, 1f) else 0f,
                             onToggle = {
@@ -368,7 +377,10 @@ private fun MainScreen() {
                     onRequestPermission = {
                         audioPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
                     },
-                    onPlayLocal = { songs, index -> playLocal(songs, index) }
+                    onPlayLocal = { songs, index -> playLocal(songs, index) },
+                    nowTitle = nowTitle,
+                    nowArtist = nowArtist,
+                    isPlaying = isPlaying
                 )
                 AppScreen.Online -> OnlineScreen(
                     queryState = onlineQueryState,
@@ -414,6 +426,7 @@ private fun MainScreen() {
 private fun MiniPlayerBar(
     title: String,
     artist: String,
+    artworkUrl: String,
     isPlaying: Boolean,
     progress: Float,
     onToggle: () -> Unit,
@@ -421,24 +434,33 @@ private fun MiniPlayerBar(
     onPrev: () -> Unit,
     onOpen: () -> Unit
 ) {
-    Surface(
-        color = Color(0xFF1B2B1E),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clickable { onOpen() }
+    // Mini player gaya referensi: kartu membulat melayang, thumbnail,
+    // judul hijau, tombol jeda hijau bulat, garis progress di tepi bawah.
+    Box(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(16.dp)).background(Color(0xFF1B2B1E))
+            .clickable { onOpen() }
     ) {
         Column {
             Row(
-                Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                ArtThumb(artworkUrl, 44)
+                Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(title, color = Color(0xFF8AFF00), fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     Text(artist, color = Color(0xFF9AA99D), fontSize = 12.sp, maxLines = 1)
                 }
                 TextButton(onClick = onPrev) {
                     Text("⏮", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
-                TextButton(onClick = onToggle) {
-                    Text(if (isPlaying) "⏸" else "▶", color = Color(0xFF8AFF00), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Box(
+                    Modifier.size(44.dp).clip(CircleShape).background(Color(0xFF8AFF00))
+                        .clickable { onToggle() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(if (isPlaying) "❚❚" else "▶", color = Color(0xFF050805), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
                 TextButton(onClick = onNext) {
                     Text("⏭", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)

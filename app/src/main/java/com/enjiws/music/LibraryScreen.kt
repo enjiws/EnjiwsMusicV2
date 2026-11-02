@@ -10,6 +10,14 @@ import android.util.Size
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -179,11 +187,11 @@ fun LocalArtThumb(song: LocalSong, sizeDp: Int) {
                 bitmap = bmp.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(8.dp))
+                modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(12.dp))
             )
         } else {
             Box(
-                Modifier.size(sizeDp.dp).clip(RoundedCornerShape(8.dp))
+                Modifier.size(sizeDp.dp).clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFF253129)),
                 contentAlignment = Alignment.Center
             ) {
@@ -196,11 +204,11 @@ fun LocalArtThumb(song: LocalSong, sizeDp: Int) {
                 model = song.artworkUri,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(8.dp))
+                modifier = Modifier.size(sizeDp.dp).clip(RoundedCornerShape(12.dp))
             )
         } else {
             Box(
-                Modifier.size(sizeDp.dp).clip(RoundedCornerShape(8.dp))
+                Modifier.size(sizeDp.dp).clip(RoundedCornerShape(12.dp))
                     .background(Color(0xFF253129)),
                 contentAlignment = Alignment.Center
             ) {
@@ -210,12 +218,37 @@ fun LocalArtThumb(song: LocalSong, sizeDp: Int) {
     }
 }
 
+// Indikator lagu sedang diputar: 4 batang equalizer beranimasi.
+// (Dekoratif, bukan gelombang suara live dari audio.)
+@Composable
+private fun PlayingBars() {
+    val transition = rememberInfiniteTransition(label = "playing-bars")
+    val h1 by transition.animateFloat(0.25f, 1f, infiniteRepeatable(tween(550), RepeatMode.Reverse), label = "b1")
+    val h2 by transition.animateFloat(0.25f, 1f, infiniteRepeatable(tween(750), RepeatMode.Reverse), label = "b2")
+    val h3 by transition.animateFloat(0.25f, 1f, infiniteRepeatable(tween(650), RepeatMode.Reverse), label = "b3")
+    val h4 by transition.animateFloat(0.25f, 1f, infiniteRepeatable(tween(850), RepeatMode.Reverse), label = "b4")
+    Row(
+        Modifier.height(18.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        listOf(h1, h2, h3, h4).forEach { h ->
+            Box(
+                Modifier.width(3.dp).height((4 + h * 12).dp)
+                    .clip(RoundedCornerShape(2.dp)).background(Color(0xFF8AFF00))
+            )
+        }
+    }
+}
+
 @Composable
 private fun LocalSongRow(
     song: LocalSong,
     onPlay: () -> Unit,
     onToggleFavorite: (LocalSong) -> Unit,
-    onAdd: (LocalSong) -> Unit
+    onAdd: (LocalSong) -> Unit,
+    isCurrent: Boolean = false,
+    showBars: Boolean = false
 ) {
     val track = song.toOnlineTrack()
     val fav = PlaylistStore.isFavorite(track)
@@ -223,34 +256,78 @@ private fun LocalSongRow(
         Modifier.fillMaxWidth().clickable { onPlay() }.padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        LocalArtThumb(song, 46)
+        LocalArtThumb(song, 56)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(song.title, color = Color(0xFFF1F5F1), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
             Text(
-                "${song.artist}  ·  ${song.durationMs / 60000}:${((song.durationMs / 1000) % 60).toString().padStart(2, '0')}",
-                color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 1
+                song.title,
+                color = if (isCurrent) Color(0xFF8AFF00) else Color(0xFFF1F5F1),
+                fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1
             )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    song.artist,
+                    color = Color(0xFF9AA99D), fontSize = 12.sp, maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    "${song.durationMs / 60000}:${((song.durationMs / 1000) % 60).toString().padStart(2, '0')}",
+                    color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, maxLines = 1
+                )
+            }
         }
-        TextButton(onClick = { onToggleFavorite(song) }) {
-            Text(
-                if (fav) "♥" else "♡",
-                color = if (fav) Color(0xFFFF5252) else Color(0xFF9AA99D),
-                fontSize = 16.sp, fontWeight = FontWeight.Bold
-            )
+        if (showBars) {
+            PlayingBars()
+            Spacer(Modifier.width(10.dp))
         }
-        TextButton(onClick = { onAdd(song) }) {
-            Text("+", color = Color(0xFF8AFF00), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        var menuExpanded by remember(song) { mutableStateOf(false) }
+        Box {
+            TextButton(onClick = { menuExpanded = true }) {
+                Text("⋮", color = Color(0xFF8AFF00), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text(if (fav) "Hapus dari Favorit" else "Tambah ke Favorit") },
+                    onClick = { menuExpanded = false; onToggleFavorite(song) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Tambah ke Playlist") },
+                    onClick = { menuExpanded = false; onAdd(song) }
+                )
+            }
         }
     }
     HorizontalDivider(color = Color(0xFF253129))
 }
 
 @Composable
+private fun LibTabItem(label: String, selected: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier.clickable { onClick() }.padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            label,
+            color = if (selected) Color(0xFF8AFF00) else Color(0xFF9AA99D),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(4.dp))
+        Box(
+            Modifier.height(3.dp).width(28.dp).clip(RoundedCornerShape(2.dp))
+                .background(if (selected) Color(0xFF8AFF00) else Color.Transparent)
+        )
+    }
+}
+
+@Composable
 fun LibraryScreen(
     hasPermission: Boolean,
     onRequestPermission: () -> Unit,
-    onPlayLocal: (List<LocalSong>, Int) -> Unit
+    onPlayLocal: (List<LocalSong>, Int) -> Unit,
+    nowTitle: String = "",
+    nowArtist: String = "",
+    isPlaying: Boolean = false
 ) {
     val context = LocalContext.current
     var songs by remember { mutableStateOf<List<LocalSong>>(emptyList()) }
@@ -309,28 +386,31 @@ fun LibraryScreen(
         if (!hasPermission) {
             Button(onClick = onRequestPermission) { Text("Izinkan Akses Musik") }
         } else {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it; openGroup = null },
-                placeholder = { Text("Cari lagu / artis / album...") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
+            // Bar pencarian gaya referensi: pil membulat + tombol hijau,
+            // ikon urutkan, dan tombol putar semua.
+            val focusManager = LocalFocusManager.current
             Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it; openGroup = null },
+                    placeholder = { Text("Cari lagu...") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(28.dp),
+                    trailingIcon = {
+                        Box(
+                            Modifier.size(36.dp).clip(CircleShape).background(Color(0xFF8AFF00))
+                                .clickable { focusManager.clearFocus() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⌕", color = Color(0xFF050805), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
                 Box {
                     TextButton(onClick = { sortMenuOpen = true }) {
-                        Text(
-                            "URUTKAN ▾ (${
-                                when (sortBy) {
-                                    LibSort.Title -> "Judul"
-                                    LibSort.Artist -> "Artis"
-                                    LibSort.Album -> "Album"
-                                    LibSort.Recent -> "Terbaru"
-                                }
-                            })",
-                            color = Color(0xFF8AFF00), fontSize = 12.sp, fontWeight = FontWeight.Bold
-                        )
+                        Text("⇅", color = Color(0xFF8AFF00), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     }
                     DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
                         DropdownMenuItem(
@@ -351,20 +431,19 @@ fun LibraryScreen(
                         )
                     }
                 }
+                TextButton(
+                    onClick = { if (displayed.isNotEmpty()) onPlayLocal(displayed, 0) },
+                    enabled = displayed.isNotEmpty()
+                ) {
+                    Text("▶", color = Color(0xFF8AFF00), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
             }
+            Spacer(Modifier.height(8.dp))
             Row {
-                TextButton(onClick = { tab = LibTab.All; openGroup = null }) {
-                    Text("Semua", color = if (tab == LibTab.All) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
-                }
-                TextButton(onClick = { tab = LibTab.Artists; openGroup = null }) {
-                    Text("Artis", color = if (tab == LibTab.Artists) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
-                }
-                TextButton(onClick = { tab = LibTab.Albums; openGroup = null }) {
-                    Text("Album", color = if (tab == LibTab.Albums) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
-                }
-                TextButton(onClick = { tab = LibTab.Folders; openGroup = null }) {
-                    Text("Folder", color = if (tab == LibTab.Folders) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
-                }
+                LibTabItem("Semua", tab == LibTab.All) { tab = LibTab.All; openGroup = null }
+                LibTabItem("Artis", tab == LibTab.Artists) { tab = LibTab.Artists; openGroup = null }
+                LibTabItem("Album", tab == LibTab.Albums) { tab = LibTab.Albums; openGroup = null }
+                LibTabItem("Folder", tab == LibTab.Folders) { tab = LibTab.Folders; openGroup = null }
             }
             if (status.isNotBlank()) {
                 Text(status, color = Color(0xFF9AA99D), fontSize = 11.sp)
@@ -395,11 +474,14 @@ fun LibraryScreen(
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
                         itemsIndexed(detailSongs) { index, song ->
+                            val current = nowTitle.isNotBlank() && song.title == nowTitle && song.artist == nowArtist
                             LocalSongRow(
                                 song = song,
                                 onPlay = { onPlayLocal(detailSongs, index) },
                                 onToggleFavorite = { toggleFavorite(it) },
-                                onAdd = { addTarget = it.toOnlineTrack() }
+                                onAdd = { addTarget = it.toOnlineTrack() },
+                                isCurrent = current,
+                                showBars = current && isPlaying
                             )
                         }
                     }
@@ -413,11 +495,14 @@ fun LibraryScreen(
                 } else {
                     LazyColumn(Modifier.fillMaxSize()) {
                         itemsIndexed(displayed) { index, song ->
+                            val current = nowTitle.isNotBlank() && song.title == nowTitle && song.artist == nowArtist
                             LocalSongRow(
                                 song = song,
                                 onPlay = { onPlayLocal(displayed, index) },
                                 onToggleFavorite = { toggleFavorite(it) },
-                                onAdd = { addTarget = it.toOnlineTrack() }
+                                onAdd = { addTarget = it.toOnlineTrack() },
+                                isCurrent = current,
+                                showBars = current && isPlaying
                             )
                         }
                     }
