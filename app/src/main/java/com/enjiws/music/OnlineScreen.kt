@@ -4,8 +4,11 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -320,7 +323,13 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
         )
         Spacer(Modifier.height(2.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        // Chip sumber dalam satu baris geser horizontal (bukan 2 baris),
+        // supaya area pencarian lebih ringkas.
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             TextButton(onClick = { toggle(Source.YouTube) }, modifier = Modifier.height(34.dp)) {
                 Text("YouTube", color = if (Source.YouTube in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
@@ -330,8 +339,6 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
             TextButton(onClick = { toggle(Source.Apple) }, modifier = Modifier.height(34.dp)) {
                 Text("Apple", color = if (Source.Apple in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = { toggle(Source.Audius) }, modifier = Modifier.height(34.dp)) {
                 Text("Audius", color = if (Source.Audius in selected) Color(0xFF8AFF00) else Color(0xFF9AA99D), fontWeight = FontWeight.Bold)
             }
@@ -340,22 +347,16 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
             }
         }
 
-        Row(Modifier.fillMaxWidth().height(32.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { selected = Source.values().toSet() }, enabled = !searching) {
-                Text("PILIH SEMUA", color = Color(0xFF91D6A0), fontSize = 10.sp)
-            }
-            TextButton(onClick = { selected = emptySet() }, enabled = !searching) {
-                Text("KOSONGKAN", color = Color(0xFF9AA99D), fontSize = 10.sp)
-            }
-        }
-
         Button(onClick = { searchAll() }, enabled = !searching, modifier = Modifier.fillMaxWidth().height(44.dp)) {
             Text(if (searching) "MENCARI..." else "CARI")
         }
         Spacer(Modifier.height(5.dp))
-        Text(status, color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 2)
-        Text("Ketuk lagu untuk memutar · Opsi lainnya ada di menu ⋮.", color = Color(0xFF9AA99D), fontSize = 10.sp, maxLines = 1)
-        Spacer(Modifier.height(4.dp))
+        // Status hanya tampil kalau ada isinya; teks petunjuk permanen
+        // dihapus supaya area pencarian tidak ramai.
+        if (status.isNotBlank()) {
+            Text(status, color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 2)
+            Spacer(Modifier.height(4.dp))
+        }
 
         // Sisa tinggi layar diberikan ke daftar agar tidak tertutup mini-player/navigation bar.
         LazyColumn(
@@ -370,7 +371,7 @@ fun OnlineScreen(queryState: MutableState<String>, selectedState: MutableState<S
                     ArtThumb(track.artworkUrl, 46)
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(track.title, color = Color(0xFFF1F5F1), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                        Text(track.title, color = Color(0xFFF1F5F1), fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 2)
                         Text(
                             "${track.artist}  ·  ${if (track.durationSeconds > 0) "${track.durationSeconds / 60}:${(track.durationSeconds % 60).toString().padStart(2, '0')}  ·  " else ""}${track.source}${if (track.audioUrl.isBlank() && track.youtubeUrl.isBlank() && track.soundcloudUrl.isBlank() && track.pipedId.isBlank()) " · BUKA LAGU" else " · PUTAR"}",
                             color = Color(0xFF9AA99D), fontSize = 11.sp, maxLines = 1
