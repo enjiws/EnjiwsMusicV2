@@ -99,6 +99,18 @@ private fun MainScreen() {
     var onlineQueue by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
     var onlineIndex by remember { mutableStateOf(-1) }
 
+    // Pulihkan metadata antrean online. URL stream di-resolve ulang saat diputar.
+    LaunchedEffect(Unit) {
+        val saved = QueuePersistence.restore(context)
+        if (onlineQueue.isEmpty() && saved.tracks.isNotEmpty()) {
+            onlineQueue = saved.tracks
+            onlineIndex = saved.index
+        }
+    }
+    LaunchedEffect(onlineQueue, onlineIndex) {
+        QueuePersistence.save(context, onlineQueue, onlineIndex)
+    }
+
     // State pencarian online diangkat ke sini supaya tetap ada walau layar Online
     // sedang tidak tampil (mis. saat di Now Playing). Inilah yang membuat teks
     // pencarian dan hasilnya tidak hilang lagi saat pindah layar.
