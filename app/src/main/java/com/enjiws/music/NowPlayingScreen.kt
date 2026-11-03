@@ -484,6 +484,8 @@ fun NowPlayingScreenFromController(
     plainLyrics: String = "",
     onBack: () -> Unit,
     onMore: () -> Unit,
+    onNext: () -> Unit = { controller?.seekToNext() },
+    onPrev: () -> Unit = { controller?.seekToPrevious() },
     favoriteTrack: OnlineTrack? = null,
     isFavorite: Boolean = false,
     onFavoriteToggle: () -> Unit = {},
@@ -538,8 +540,8 @@ fun NowPlayingScreenFromController(
                 if (controller.isPlaying) controller.pause() else controller.play()
             }
         },
-        onNext = { controller?.seekToNext() },
-        onPrev = { controller?.seekToPrevious() },
+        onNext = onNext,
+        onPrev = onPrev,
         onSeek = { controller?.seekTo(it) },
         onShuffleToggle = {
             if (controller != null) controller.shuffleModeEnabled = !controller.shuffleModeEnabled

@@ -54,6 +54,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import org.schabi.newpipe.extractor.NewPipe
 import com.google.common.util.concurrent.MoreExecutors
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -96,6 +97,8 @@ private fun MainScreen() {
     var lyrics by remember { mutableStateOf<List<LyricLine>>(emptyList()) }
     var plainLyrics by remember { mutableStateOf("") }
     var lyricsJob by remember { mutableStateOf<Job?>(null) }
+    // Mencegah beberapa proses next/autoplay berjalan bersamaan.
+    var nextPlaybackJob by remember { mutableStateOf<Job?>(null) }
 
     // Status mini player (dipoll dari controller tiap 500 ms).
     var isPlaying by remember { mutableStateOf(false) }
@@ -269,51 +272,88 @@ private fun MainScreen() {
         lyricsJob = request
     }
 
-    // Maju satu lagu di antrean online. Kalau lagu berikutnya gagal dibuka,
-    // loncat ke sesudahnya. Kalau antrean habis, ambil lagu terkait dari lagu
-    // terakhir dan lanjutkan (radio otomatis): YouTube via related NewPipe
-    // (jatuh ke Piped kalau kena bot check), Piped via related Piped.
-    // Lagu yang sudah ada di antrean tidak diulang.
+    // Maju satu lagu online. Mendukung shuffle, repeat-all, dan radio otomatis
+    // ketika antrean normal habis. Satu job aktif dijaga agar tap cepat atau
+    // callback STATE_ENDED tidak memicu beberapa resolusi stream bersamaan.
     fun playOnlineNext() {
+        if (nextPlaybackJob?.isActive == true) return
         val q = onlineQueue
         val i = onlineIndex
-        if (i < 0) return
-        scope.launch {
-            for (j in i + 1 until q.size) {
-                try {
-                    val url = resolveTrackUrl(q[j])
-                    playOnline(q, j, url)
-                    return@launch
-                } catch (e: Exception) {
-                    // Lagu ini gagal dibuka, coba lagu berikutnya.
+        if (i < 0 || q.isEmpty()) return
+
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val c = controller
+                val repeatAll = c?.repeatMode == Player.REPEAT_MODE_ALL
+                val shuffle = c?.shuffleModeEnabled == true
+
+                val candidateIndices = when {
+                    shuffle && q.size > 1 ->
+                        q.indices.filter { it != i }.shuffled()
+                    shuffle && repeatAll -> listOf(i)
+                    repeatAll && i + 1 >= q.size -> listOf(0)
+                    else -> (i + 1 until q.size).toList()
                 }
-            }
-            val last = q.getOrNull(i)
-            if (last == null) {
-                onlineIndex = -1
-                return@launch
-            }
-            val related = try {
-                fetchRelatedTracks(last).filter { r -> q.none { isSameSong(it, r) } }
-            } catch (e: Exception) {
-                emptyList()
-            }
-            if (related.isEmpty()) {
-                onlineIndex = -1
-                return@launch
-            }
-            val newQueue = q + related
-            for (j in q.size until newQueue.size) {
-                try {
-                    val url = resolveTrackUrl(newQueue[j])
-                    playOnline(newQueue, j, url)
-                    return@launch
-                } catch (e: Exception) {
-                    // Lagu terkait ini gagal dibuka, coba berikutnya.
+
+                for (j in candidateIndices) {
+                    try {
+                        val url = resolveTrackUrl(q[j])
+                        playOnline(q, j, url)
+                        return@launch
+                    } catch (_: Exception) {
+                        // Stream gagal di-resolve; coba kandidat berikutnya.
+                    }
                 }
+
+                // Repeat ALL tanpa shuffle kembali ke awal antrean.
+                if (repeatAll && !shuffle && i > 0) {
+                    for (j in 0 until i) {
+                        try {
+                            val url = resolveTrackUrl(q[j])
+                            playOnline(q, j, url)
+                            return@launch
+                        } catch (_: Exception) {
+                            // Lanjut ke kandidat berikutnya.
+                        }
+                    }
+                }
+
+                // Shuffle + repeat-all: bila hanya satu lagu, putar ulang.
+                if (shuffle && repeatAll && q.size == 1) {
+                    try {
+                        val url = resolveTrackUrl(q[0])
+                        playOnline(q, 0, url)
+                        return@launch
+                    } catch (_: Exception) {
+                        // Lanjut ke fallback radio.
+                    }
+                }
+
+                // Repeat OFF: pertahankan perilaku radio otomatis saat antrean habis.
+                val last = q.getOrNull(i) ?: return@launch
+                val related = try {
+                    fetchRelatedTracks(last).filter { r -> q.none { isSameSong(it, r) } }
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                if (related.isEmpty()) return@launch
+
+                val newQueue = q + related
+                for (j in q.size until newQueue.size) {
+                    try {
+                        val url = resolveTrackUrl(newQueue[j])
+                        playOnline(newQueue, j, url)
+                        return@launch
+                    } catch (_: Exception) {
+                        // Coba rekomendasi berikutnya.
+                    }
+                }
+            } finally {
+                nextPlaybackJob = null
             }
-            onlineIndex = -1
         }
+        nextPlaybackJob = job
+        job.start()
     }
 
     // Mundur satu lagu di antrean online; di lagu pertama, putar ulang lagu itu.
@@ -321,8 +361,13 @@ private fun MainScreen() {
         val q = onlineQueue
         val i = onlineIndex
         if (i < 0) return
+        val c = controller
+        if (c != null && c.currentPosition > 3_000L) {
+            c.seekTo(0)
+            return
+        }
         if (i - 1 < 0) {
-            controller?.seekTo(0)
+            c?.seekTo(0)
             return
         }
         scope.launch {
@@ -426,7 +471,12 @@ private fun MainScreen() {
                     currentIndex = onlineIndex,
                     onBack = { screen = queueOrigin },
                     onPlayReady = { queue, index, url -> playOnline(queue, index, url) },
-                    onClearUpcoming = { if (onlineIndex >= 0) onlineQueue = onlineQueue.take(onlineIndex + 1) }
+                    onClearUpcoming = { if (onlineIndex >= 0) onlineQueue = onlineQueue.take(onlineIndex + 1) },
+                    onRemoveUpcoming = { absoluteIndex ->
+                        if (absoluteIndex > onlineIndex && absoluteIndex in onlineQueue.indices) {
+                            onlineQueue = onlineQueue.toMutableList().also { it.removeAt(absoluteIndex) }
+                        }
+                    }
                 )
                 AppScreen.NowPlaying -> NowPlayingScreenFromController(
                     controller = controller,
@@ -434,6 +484,8 @@ private fun MainScreen() {
                     plainLyrics = plainLyrics,
                     onBack = { screen = previousScreen },
                     onMore = { },
+                    onNext = { if (onlineIndex >= 0) playOnlineNext() else controller?.seekToNext() },
+                    onPrev = { if (onlineIndex >= 0) playOnlinePrev() else controller?.seekToPrevious() },
                     favoriteTrack = if (onlineIndex >= 0) onlineQueue.getOrNull(onlineIndex) else null,
                     isFavorite = (if (onlineIndex >= 0) onlineQueue.getOrNull(onlineIndex) else null)?.let { PlaylistStore.isFavorite(it) } ?: false,
                     onFavoriteToggle = {

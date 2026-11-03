@@ -1,6 +1,7 @@
 package com.enjiws.music
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,7 +43,8 @@ fun QueueScreen(
     currentIndex: Int,
     onBack: () -> Unit,
     onPlayReady: (queue: List<OnlineTrack>, index: Int, url: String) -> Unit,
-    onClearUpcoming: () -> Unit = {}
+    onClearUpcoming: () -> Unit = {},
+    onRemoveUpcoming: (absoluteIndex: Int) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     var status by remember { mutableStateOf("") }
@@ -152,8 +154,15 @@ fun QueueScreen(
                     Spacer(Modifier.height(8.dp))
                 }
                 itemsIndexed(upcoming) { j, track ->
-                    QueueRow(track = track, highlighted = false) {
-                        playFrom(queue, currentIndex + 1 + j)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) {
+                            QueueRow(track = track, highlighted = false) {
+                                playFrom(queue, currentIndex + 1 + j)
+                            }
+                        }
+                        TextButton(onClick = { onRemoveUpcoming(currentIndex + 1 + j) }) {
+                            Text("HAPUS", color = Color.White.copy(alpha = 0.55f), fontSize = 10.sp)
+                        }
                     }
                 }
                 item { Spacer(Modifier.height(16.dp)) }
