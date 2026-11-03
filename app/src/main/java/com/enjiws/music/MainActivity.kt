@@ -15,7 +15,7 @@ import com.enjiws.music.ui.theme.NeonGreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate()
+        super.onCreate(savedInstanceState)
         setContent {
             EnjiwsTheme {
                 var currentTab by remember { mutableIntStateOf(0) }

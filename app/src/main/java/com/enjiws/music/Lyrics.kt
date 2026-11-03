@@ -8,7 +8,7 @@ data class LyricLine(
 object LyricsParser {
     fun parseLrc(lrcContent: String): List<LyricLine> {
         val lines = mutableListOf<LyricLine>()
-        val regex = Regex("\[(\\d{2}):(\\d{2})\\.(\\d{2,3})\](.*)")
+        val regex = """\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)""".toRegex()
 
         lrcContent.lines().forEach { line ->
             val match = regex.find(line)
