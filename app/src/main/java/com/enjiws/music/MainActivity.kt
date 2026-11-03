@@ -54,7 +54,9 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import org.schabi.newpipe.extractor.NewPipe
 import com.google.common.util.concurrent.MoreExecutors
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 enum class AppScreen { Library, Online, Playlist, Queue, NowPlaying }
@@ -93,6 +95,7 @@ private fun MainScreen() {
     var queueOrigin by remember { mutableStateOf(AppScreen.NowPlaying) }
     var lyrics by remember { mutableStateOf<List<LyricLine>>(emptyList()) }
     var plainLyrics by remember { mutableStateOf("") }
+    var lyricsJob by remember { mutableStateOf<Job?>(null) }
 
     // Status mini player (dipoll dari controller tiap 500 ms).
     var isPlaying by remember { mutableStateOf(false) }
@@ -128,9 +131,17 @@ private fun MainScreen() {
     val onlineStatusState = remember { mutableStateOf("Cari lagu dari YouTube, SoundCloud, Apple Music, Audius, dan Piped.") }
 
     // Izin akses musik (untuk tab Lokal).
+    val audioPermission = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_AUDIO
+        } else {
+            @Suppress("DEPRECATION")
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+    }
     var audioGranted by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO) ==
+            ContextCompat.checkSelfPermission(context, audioPermission) ==
                 PackageManager.PERMISSION_GRANTED
         )
     }
@@ -211,11 +222,18 @@ private fun MainScreen() {
         c.setMediaItem(item)
         c.prepare()
         c.play()
-        scope.launch {
+        lyricsJob?.cancel()
+        lyrics = emptyList()
+        plainLyrics = ""
+        val request = scope.launch {
             val synced = fetchLyrics(track.artist, track.title)
-            lyrics = synced
-            plainLyrics = if (synced.isEmpty()) fetchPlainLyrics(track.artist, track.title) ?: "" else ""
+            val plain = if (synced.isEmpty()) fetchPlainLyrics(track.artist, track.title).orEmpty() else ""
+            if (isActive && lyricsJob === coroutineContext[Job]) {
+                lyrics = synced
+                plainLyrics = plain
+            }
         }
+        lyricsJob = request
     }
 
     fun playLocal(songs: List<LocalSong>, index: Int) {
@@ -237,11 +255,18 @@ private fun MainScreen() {
         c.prepare()
         c.play()
         val song = songs[index]
-        scope.launch {
+        lyricsJob?.cancel()
+        lyrics = emptyList()
+        plainLyrics = ""
+        val request = scope.launch {
             val synced = fetchLyrics(song.artist, song.title)
-            lyrics = synced
-            plainLyrics = if (synced.isEmpty()) fetchPlainLyrics(song.artist, song.title) ?: "" else ""
+            val plain = if (synced.isEmpty()) fetchPlainLyrics(song.artist, song.title).orEmpty() else ""
+            if (isActive && lyricsJob === coroutineContext[Job]) {
+                lyrics = synced
+                plainLyrics = plain
+            }
         }
+        lyricsJob = request
     }
 
     // Maju satu lagu di antrean online. Kalau lagu berikutnya gagal dibuka,
@@ -375,7 +400,7 @@ private fun MainScreen() {
                 AppScreen.Library -> LibraryScreen(
                     hasPermission = audioGranted,
                     onRequestPermission = {
-                        audioPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
+                        audioPermissionLauncher.launch(audioPermission)
                     },
                     onPlayLocal = { songs, index -> playLocal(songs, index) },
                     nowTitle = nowTitle,
