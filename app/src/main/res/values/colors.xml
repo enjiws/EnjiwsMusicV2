@@ -4,4 +4,5 @@
     <color name="neon_green">#39FF14</color>
     <color name="langsat_yellow">#F3E5AB</color>
     <color name="dark_gray">#121212</color>
+    <color name="ic_launcher_background">#000000</color>
 </resources>
