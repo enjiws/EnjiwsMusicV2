@@ -160,8 +160,27 @@ object Catalog {
         }
         val videoId = Piped.videoIdOf(track.youtubeUrl)
         if (videoId.isBlank()) return@withContext emptyList()
-        relatedViaNewPipe(ServiceList.YouTube, track.youtubeUrl, "YouTube").ifEmpty { Piped.related(videoId) }
+        // 1) YouTube Mix (radio khusus lagu ini) -> 2) video terkait -> 3) Piped.
+        val raw = runCatching { mixViaNewPipe(videoId) }.getOrDefault(emptyList())
+            .ifEmpty { relatedViaNewPipe(ServiceList.YouTube, track.youtubeUrl, "YouTube") }
+            .ifEmpty { Piped.related(videoId) }
+        cleanRadio(raw, track)
     }
+
+    private fun mixViaNewPipe(videoId: String): List<Track> {
+        val extractor = ServiceList.YouTube.getPlaylistExtractor("https://www.youtube.com/watch?v=$videoId&list=RD$videoId")
+        extractor.fetchPage()
+        return extractor.getInitialPage().getItems().filterIsInstance<StreamInfoItem>().map { it.toTrack("YouTube") }
+    }
+
+    private val notSong = Regex("""(?i)\b(full album|playlist|reaction|live stream|livestream|1 hour|2 hours|jam|compilation)\b""")
+
+    /** Buang yang jelas bukan lagu biasa: terlalu pendek/panjang, judul sama dengan lagu sekarang, mix & album penuh. */
+    private fun cleanRadio(list: List<Track>, seed: Track): List<Track> = list
+        .filter { it.title.isNotBlank() }
+        .filter { it.durationSeconds == 0L || it.durationSeconds in 60L..600L }
+        .filter { !it.title.equals(seed.title, true) && !notSong.containsMatchIn(it.title) }
+        .distinctBy { it.key }
 
     private fun relatedViaNewPipe(service: StreamingService, url: String, label: String): List<Track> =
         runCatching {
