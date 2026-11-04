@@ -17,7 +17,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,15 +58,15 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         SwitchRow("Hemat data", "Pilih kualitas audio online yang lebih rendah", Prefs.dataSaver) { Prefs.updateDataSaver(it) }
         ActionRow("Equalizer", "Atur frekuensi suara") { eq = true }
 
-        Header("Sumber pencarian")
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Source.values().take(3).forEach { s -> FilterChip(selected = s in Prefs.sources, onClick = { Prefs.toggleSource(s) }, label = { Text(s.label) }) }
-        }
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Source.values().drop(3).forEach { s -> FilterChip(selected = s in Prefs.sources, onClick = { Prefs.toggleSource(s) }, label = { Text(s.label) }) }
-        }
+        Header("Mood AI (opsional)")
+        OutlinedTextField(
+            value = Prefs.apiKey, onValueChange = { Prefs.updateApiKey(it) }, singleLine = true,
+            label = { Text("API key Claude") }, visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        )
         Text(
-            "Apple Music hanya menyediakan pratinjau 30 detik. Piped bergantung pada server pihak ketiga yang sering tidak stabil.",
+            "Tanpa key, mood dideteksi dengan kata kunci lokal. Dengan key, teks perasaanmu dikirim ke Claude (Anthropic) " +
+                "dan pemakaiannya ditagih ke akunmu. Key tersimpan di HP ini saja; jangan dibagikan.",
             Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 

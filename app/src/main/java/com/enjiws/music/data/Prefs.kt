@@ -16,9 +16,11 @@ object Prefs {
     var dynamicColor by mutableStateOf(false); private set
     var autoplay by mutableStateOf(true); private set
     var dataSaver by mutableStateOf(false); private set
-    var sources by mutableStateOf(setOf(Source.YouTube, Source.SoundCloud, Source.Audius)); private set
+    var sources by mutableStateOf(setOf(Source.YouTube)); private set
     var eqEnabled by mutableStateOf(false); private set
     var eqLevels by mutableStateOf<List<Int>>(emptyList()); private set
+    /** API key Claude milik pengguna untuk Mood AI. Disimpan hanya di HP ini. */
+    var apiKey by mutableStateOf(""); private set
 
     fun init(context: Context) {
         if (::sp.isInitialized) return
@@ -28,11 +30,9 @@ object Prefs {
         autoplay = sp.getBoolean("autoplay", true)
         dataSaver = sp.getBoolean("datasaver", false)
         eqEnabled = sp.getBoolean("eq_on", false)
+        apiKey = sp.getString("api_key", "").orEmpty()
         eqLevels = sp.getString("eq_levels", "").orEmpty().split(",").mapNotNull { it.toIntOrNull() }
-        sp.getString("sources", null)?.let { raw ->
-            val parsed = raw.split(",").mapNotNull { n -> Source.values().firstOrNull { it.name == n } }.toSet()
-            if (parsed.isNotEmpty()) sources = parsed
-        }
+    }
     }
 
     fun updateThemeMode(v: Int) { themeMode = v; sp.edit().putInt("theme", v).apply() }
@@ -41,6 +41,8 @@ object Prefs {
     fun updateDataSaver(v: Boolean) { dataSaver = v; sp.edit().putBoolean("datasaver", v).apply() }
     fun updateEqEnabled(v: Boolean) { eqEnabled = v; sp.edit().putBoolean("eq_on", v).apply() }
     fun updateEqLevels(v: List<Int>) { eqLevels = v; sp.edit().putString("eq_levels", v.joinToString(",")).apply() }
+
+    fun updateApiKey(v: String) { apiKey = v.trim(); sp.edit().putString("api_key", apiKey).apply() }
 
     fun toggleSource(s: Source) {
         val next = if (s in sources) sources - s else sources + s
