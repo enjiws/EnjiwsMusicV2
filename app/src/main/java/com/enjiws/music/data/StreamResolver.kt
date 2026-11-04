@@ -61,8 +61,8 @@ object StreamResolver {
             val all = extractor.getAudioStreams()
             val usable = all.filter { it.isUrl() }
             val progressive = usable.filter { it.getDeliveryMethod() == DeliveryMethod.PROGRESSIVE_HTTP }
-            val compatible = progressive.filter { it.getFormat() == MediaFormat.M4A || it.getFormat() == MediaFormat.MP3 }
-                .ifEmpty { progressive }
+            // Semua format progresif ikut dipertimbangkan (termasuk Opus), lalu diambil bitrate tertinggi.
+            val compatible = progressive
             val best = if (Prefs.dataSaver) {
                 compatible.filter { it.getAverageBitrate() > 0 }.minByOrNull { it.getAverageBitrate() }
                     ?: compatible.firstOrNull()
