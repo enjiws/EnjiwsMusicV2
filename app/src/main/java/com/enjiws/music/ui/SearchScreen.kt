@@ -76,7 +76,7 @@ object SearchState {
         loading = true
         message = "Mencari…"
         results = emptyList()
-        val sources = Prefs.sources
+        val sources = setOf(Source.YouTube)
         job = AppScope.launch {
             val collected = mutableListOf<Track>()
             val counts = mutableListOf<String>()
@@ -141,15 +141,6 @@ fun SearchScreen() {
             shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).onFocusChanged { focused = it.isFocused }
         )
-        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Source.values().forEach { s ->
-                FilterChip(
-                    selected = s in Prefs.sources, onClick = { Prefs.toggleSource(s) },
-                    label = { Text(s.label) }, modifier = Modifier.padding(horizontal = 0.dp)
-                )
-            }
-        }
-
         Box(Modifier.fillMaxSize()) {
             when {
                 focused && suggestions.isNotEmpty() -> LazyColumn {
@@ -176,7 +167,7 @@ fun SearchScreen() {
                         }
                         itemsIndexed(SearchState.results, key = { i, t -> "$i${t.key}" }) { _, t ->
                             TrackRow(t, showSource = true, onClick = {
-                                if (t.canStream) PlayerHub.play(playable, playable.indexOfFirst { it.key == t.key })
+                                if (t.canStream) PlayerHub.play(listOf(t), 0)
                                 else if (t.storeUrl.isNotBlank()) runCatching {
                                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(t.storeUrl)))
                                 }
@@ -187,7 +178,7 @@ fun SearchScreen() {
                 else -> EmptyState(
                     Icons.Rounded.Search,
                     if (SearchState.message.isNotBlank()) "Tidak ada hasil" else "Cari musik",
-                    SearchState.message.ifBlank { "Ketik judul lagu atau nama artis. Pilih sumber lewat chip di atas." },
+                    SearchState.message.ifBlank { "Ketik judul lagu atau nama artis." },
                     Modifier.align(Alignment.Center)
                 )
             }
