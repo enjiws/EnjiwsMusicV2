@@ -349,7 +349,7 @@ object AudioFx {
         runCatching { eq?.setBandLevel(band.toShort(), level.toShort()) }
     }
 
-    fun commitLevels() = Prefs.setEqLevels((0 until bands).map { level(it) })
+    fun commitLevels() = Prefs.updateEqLevels((0 until bands).map { level(it) })
 
     fun presets(): List<String> {
         val e = eq ?: return emptyList()
@@ -363,6 +363,6 @@ object AudioFx {
 
     fun setEnabled(on: Boolean) {
         runCatching { eq?.enabled = on }
-        Prefs.setEqEnabled(on)
+        Prefs.updateEqEnabled(on)
     }
 }

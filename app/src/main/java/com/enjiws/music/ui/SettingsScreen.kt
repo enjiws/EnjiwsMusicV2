@@ -44,16 +44,16 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         Header("Tampilan")
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Sistem", "Gelap", "Terang").forEachIndexed { i, label ->
-                FilterChip(selected = Prefs.themeMode == i, onClick = { Prefs.setThemeMode(i) }, label = { Text(label) })
+                FilterChip(selected = Prefs.themeMode == i, onClick = { Prefs.updateThemeMode(i) }, label = { Text(label) })
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            SwitchRow("Warna dinamis", "Ikuti warna wallpaper (Android 12+)", Prefs.dynamicColor) { Prefs.setDynamicColor(it) }
+            SwitchRow("Warna dinamis", "Ikuti warna wallpaper (Android 12+)", Prefs.dynamicColor) { Prefs.updateDynamicColor(it) }
         }
 
         Header("Pemutaran")
-        SwitchRow("Radio otomatis", "Tambahkan lagu terkait saat antrean habis", Prefs.autoplay) { Prefs.setAutoplay(it) }
-        SwitchRow("Hemat data", "Pilih kualitas audio online yang lebih rendah", Prefs.dataSaver) { Prefs.setDataSaver(it) }
+        SwitchRow("Radio otomatis", "Tambahkan lagu terkait saat antrean habis", Prefs.autoplay) { Prefs.updateAutoplay(it) }
+        SwitchRow("Hemat data", "Pilih kualitas audio online yang lebih rendah", Prefs.dataSaver) { Prefs.updateDataSaver(it) }
         ActionRow("Equalizer", "Atur frekuensi suara") { eq = true }
 
         Header("Sumber pencarian")
