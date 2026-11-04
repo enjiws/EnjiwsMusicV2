@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, rombak-v2 ]
   workflow_dispatch:
 
 jobs:
