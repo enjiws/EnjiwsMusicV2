@@ -18,6 +18,7 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
@@ -83,6 +84,10 @@ class PlaybackService : MediaSessionService() {
 
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSource))
+            // Mulai bunyi setelah 1 dtk audio terisi (bawaan 2,5 dtk).
+            .setLoadControl(
+                DefaultLoadControl.Builder().setBufferDurationsMs(15_000, 60_000, 1_000, 2_000).build()
+            )
             .setAudioAttributes(
                 AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
                 true // audio focus dikelola ExoPlayer
@@ -130,6 +135,7 @@ class PlaybackService : MediaSessionService() {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             retriedId = null
             maybeExtendQueue()
+            prefetchNext()
             scheduleSave()
         }
 
@@ -142,6 +148,7 @@ class PlaybackService : MediaSessionService() {
                     item.toTrack()?.let { Store.recordPlay(it) }
                 }
                 maybeExtendQueue()
+                prefetchNext()
             }
             scheduleSave()
         }
@@ -182,6 +189,15 @@ class PlaybackService : MediaSessionService() {
             player.prepare()
             player.play()
         }
+    }
+
+    /** Resolve URL lagu berikutnya di latar belakang, jadi pindah lagu tidak menunggu lagi. */
+    private fun prefetchNext() {
+        val ni = player.nextMediaItemIndex
+        if (ni == C.INDEX_UNSET) return
+        val t = player.getMediaItemAt(ni).toTrack() ?: return
+        if (t.isLocal || !t.canStream) return
+        scope.launch(Dispatchers.IO) { runCatching { StreamResolver.resolve(t) } }
     }
 
     // ------------------------------------------------------------ radio otomatis

@@ -49,6 +49,33 @@ object Catalog {
         )
     }
 
+    private val searchCache = java.util.concurrent.ConcurrentHashMap<String, Pair<List<Track>, Long>>()
+
+    /** Cari di satu sumber (timeout 8 dtk, cache 5 mnt). Melempar exception kalau gagal. */
+    suspend fun searchSource(source: Source, query: String): List<Track> {
+        val q = query.trim()
+        val key = source.name + "|" + q.lowercase()
+        searchCache[key]?.takeIf { it.second > System.currentTimeMillis() }?.let { return it.first }
+        val r = withTimeout(8_000L) { runInterruptible(Dispatchers.IO) { searchOne(source, q) } }
+        searchCache[key] = r to System.currentTimeMillis() + 5 * 60_000L
+        return r
+    }
+
+    fun sortResults(tracks: List<Track>, q: String): List<Track> = tracks
+        .filter { it.title.isNotBlank() }
+        .sortedWith(
+            compareByDescending<Track> { it.title.equals(q, true) }
+                .thenByDescending { it.title.contains(q, true) }
+                .thenByDescending { it.canStream }
+        )
+
+    /** Memanaskan NewPipe di latar belakang supaya pencarian pertama tidak lambat. */
+    fun warmUp() {
+        runCatching {
+            searchNewPipe(ServiceList.YouTube, "musik", listOf(YoutubeSearchQueryHandlerFactory.MUSIC_SONGS), "YouTube")
+        }
+    }
+
     private fun searchOne(source: Source, q: String): List<Track> = when (source) {
         Source.YouTube -> {
             val songs = runCatching {

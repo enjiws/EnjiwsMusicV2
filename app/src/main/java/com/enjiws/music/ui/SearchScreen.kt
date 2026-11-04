@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -63,29 +64,44 @@ object SearchState {
     var message by mutableStateOf("")
     private var job: Job? = null
 
+    private var runId = 0
+
     fun run(q: String) {
         val text = q.trim()
         if (text.isBlank()) return
         query = text
         Store.addSearch(text)
         job?.cancel()
+        val id = ++runId
         loading = true
-        message = ""
+        message = "Mencari…"
+        results = emptyList()
+        val sources = Prefs.sources
         job = AppScope.launch {
-            try {
-                val out = Catalog.search(text, Prefs.sources)
-                results = out.tracks
-                val counts = out.counts.entries.joinToString(" · ") { "${it.key.label} ${it.value}" }
-                val failed = if (out.failed.isNotEmpty()) " · Gagal: " + out.failed.joinToString { it.label } else ""
-                message = when {
-                    out.tracks.isEmpty() && out.failed.size == Prefs.sources.size ->
-                        "Semua sumber gagal diakses. Periksa koneksi internet lalu coba lagi."
-                    out.tracks.isEmpty() -> "Tidak ada hasil untuk “$text”.$failed"
-                    else -> "${out.tracks.size} hasil · $counts$failed"
+            val collected = mutableListOf<Track>()
+            val counts = mutableListOf<String>()
+            val failed = mutableListOf<String>()
+            // Tiap sumber jalan sendiri; hasilnya langsung tampil begitu selesai.
+            sources.map { s ->
+                launch {
+                    runCatching { Catalog.searchSource(s, text) }
+                        .onSuccess { list ->
+                            collected += list
+                            counts += "${s.label} ${list.size}"
+                            results = Catalog.sortResults(collected.distinctBy { it.key }, text)
+                        }
+                        .onFailure { failed += s.label }
                 }
-            } finally {
-                loading = false
+            }.forEach { it.join() }
+            if (id != runId) return@launch
+            val failedText = if (failed.isNotEmpty()) " · Gagal: " + failed.joinToString() else ""
+            message = when {
+                results.isEmpty() && failed.size == sources.size ->
+                    "Semua sumber gagal diakses. Periksa koneksi internet lalu coba lagi."
+                results.isEmpty() -> "Tidak ada hasil untuk “$text”.$failedText"
+                else -> "${results.size} hasil · ${counts.joinToString(" · ")}$failedText"
             }
+            loading = false
         }
     }
 }
@@ -149,11 +165,12 @@ fun SearchScreen() {
                         SuggestionRow(Icons.Rounded.History, s, onClick = { submit(s) }, onRemove = { Store.removeSearch(s) })
                     }
                 }
-                SearchState.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                SearchState.loading && SearchState.results.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 SearchState.results.isNotEmpty() -> {
                     val playable = SearchState.results.filter { it.canStream }
                     LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
                         item {
+                            if (SearchState.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                             Text(SearchState.message, Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }

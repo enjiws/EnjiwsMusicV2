@@ -55,8 +55,10 @@ object StreamResolver {
 
     private suspend fun fromNewPipe(service: StreamingService, pageUrl: String): Resolved =
         withContext(Dispatchers.IO) {
-            val info = StreamInfo.getInfo(service, pageUrl)
-            val all = info.getAudioStreams()
+            // Extractor langsung (bukan StreamInfo.getInfo) -> tidak ikut mengurai lagu terkait & metadata.
+            val extractor = service.getStreamExtractor(pageUrl)
+            extractor.fetchPage()
+            val all = extractor.getAudioStreams()
             val usable = all.filter { it.isUrl() }
             val progressive = usable.filter { it.getDeliveryMethod() == DeliveryMethod.PROGRESSIVE_HTTP }
             val compatible = progressive.filter { it.getFormat() == MediaFormat.M4A || it.getFormat() == MediaFormat.MP3 }
