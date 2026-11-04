@@ -33,7 +33,6 @@ object Prefs {
         apiKey = sp.getString("api_key", "").orEmpty()
         eqLevels = sp.getString("eq_levels", "").orEmpty().split(",").mapNotNull { it.toIntOrNull() }
     }
-    }
 
     fun updateThemeMode(v: Int) { themeMode = v; sp.edit().putInt("theme", v).apply() }
     fun updateDynamicColor(v: Boolean) { dynamicColor = v; sp.edit().putBoolean("dynamic", v).apply() }
