@@ -18,7 +18,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import com.enjiws.music.playback.AddonHub
+import com.enjiws.music.playback.AudioAddon
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +61,13 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         SwitchRow("Hemat data", "Pilih kualitas audio online yang lebih rendah", Prefs.dataSaver) { Prefs.updateDataSaver(it) }
         ActionRow("Equalizer", "Atur frekuensi suara") { eq = true }
 
+        Header("Addon audio")
+        AddonHub.all.forEach { AddonCard(it) }
+        Text(
+            "Efek aktif saat lagu diputar. Tidak semua perangkat mendukung semua efek.",
+            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
         Header("Mood AI (opsional)")
         OutlinedTextField(
             value = Prefs.apiKey, onValueChange = { Prefs.updateApiKey(it) }, singleLine = true,
@@ -80,6 +90,29 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         Text("", Modifier.padding(bottom = 24.dp))
     }
     if (eq) EqualizerSheet { eq = false }
+}
+
+@Composable
+private fun AddonCard(a: AudioAddon) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(a.title, style = MaterialTheme.typography.bodyLarge)
+                Text(a.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = a.enabled, onCheckedChange = { a.updateEnabled(it) })
+        }
+        if (a.enabled) {
+            Slider(
+                value = a.level.toFloat(), onValueChange = { a.updateLevel(it.toInt()) },
+                onValueChangeFinished = { a.commitLevel() }, valueRange = 0f..a.maxLevel.toFloat()
+            )
+            Text(a.levelLabel(a.level), style = MaterialTheme.typography.bodySmall)
+        }
+        if (!a.supported) {
+            Text("Tidak didukung di perangkat ini", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+    }
 }
 
 @Composable

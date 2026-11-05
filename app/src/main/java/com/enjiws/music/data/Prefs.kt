@@ -41,6 +41,12 @@ object Prefs {
     fun updateEqEnabled(v: Boolean) { eqEnabled = v; sp.edit().putBoolean("eq_on", v).apply() }
     fun updateEqLevels(v: List<Int>) { eqLevels = v; sp.edit().putString("eq_levels", v.joinToString(",")).apply() }
 
+    // Penyimpanan generik untuk addon.
+    fun getBool(key: String, def: Boolean = false): Boolean = sp.getBoolean(key, def)
+    fun putBool(key: String, v: Boolean) { sp.edit().putBoolean(key, v).apply() }
+    fun getInt(key: String, def: Int = 0): Int = sp.getInt(key, def)
+    fun putInt(key: String, v: Int) { sp.edit().putInt(key, v).apply() }
+
     fun updateApiKey(v: String) { apiKey = v.trim(); sp.edit().putString("api_key", apiKey).apply() }
 
     fun toggleSource(s: Source) {

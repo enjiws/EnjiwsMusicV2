@@ -336,6 +336,7 @@ object AudioFx {
     fun attach(sessionId: Int) {
         release()
         if (sessionId == C.AUDIO_SESSION_ID_UNSET || sessionId == 0) return
+        AddonHub.attach(sessionId)
         runCatching {
             val e = Equalizer(0, sessionId)
             val saved = Prefs.eqLevels
@@ -349,6 +350,7 @@ object AudioFx {
     }
 
     fun release() {
+        AddonHub.releaseAll()
         runCatching { eq?.release() }
         eq = null
         ready.value = false
