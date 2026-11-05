@@ -12,8 +12,9 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
+import androidx.compose.runtime.mutableStateMapOf
 
-data class Resolved(val url: String, val ext: String)
+data class Resolved(val url: String, val ext: String, val kbps: Int = 0)
 
 /**
  * Mengubah Track online jadi URL audio yang bisa diputar. URL stream YouTube/SoundCloud kedaluwarsa
@@ -23,6 +24,12 @@ data class Resolved(val url: String, val ext: String)
 object StreamResolver {
     private const val TTL_MS = 20 * 60_000L
     private val cache = ConcurrentHashMap<String, Pair<Resolved, Long>>()
+
+    /** Label kualitas per lagu (mis. "OPUS · 160 kbps"), dibaca UI untuk badge di pemutar. */
+    val quality = mutableStateMapOf<String, String>()
+
+    /** Kunci yang sama untuk Track lengkap maupun Track minimal dari URI resolve. */
+    fun refOf(t: Track): String = t.youtubeUrl.ifBlank { t.soundcloudUrl.ifBlank { t.pipedId.ifBlank { t.audioUrl } } }
 
     private fun cacheKey(t: Track) = "${t.youtubeUrl}|${t.soundcloudUrl}|${t.pipedId}|${t.audioUrl}|${Prefs.dataSaver}"
 
@@ -50,6 +57,7 @@ object StreamResolver {
             else -> throw IllegalStateException("Lagu ini tidak bisa diputar")
         }
         cache[k] = r to System.currentTimeMillis() + TTL_MS
+        quality[refOf(t)] = if (r.kbps > 0) "${r.ext.uppercase()} · ${r.kbps} kbps" else r.ext.uppercase()
         return r
     }
 
@@ -77,7 +85,7 @@ object StreamResolver {
                 MediaFormat.OPUS -> "opus"
                 else -> "mp3"
             }
-            Resolved(chosen.getContent(), ext)
+            Resolved(chosen.getContent(), ext, chosen.getAverageBitrate().coerceAtLeast(0))
         }
 }
 
