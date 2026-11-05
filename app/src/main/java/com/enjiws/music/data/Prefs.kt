@@ -21,6 +21,10 @@ object Prefs {
     var eqLevels by mutableStateOf<List<Int>>(emptyList()); private set
     /** API key Claude milik pengguna untuk Mood AI. Disimpan hanya di HP ini. */
     var apiKey by mutableStateOf(""); private set
+    /** Server musik pribadi (Subsonic/Navidrome). Disimpan hanya di HP ini. */
+    var serverUrl by mutableStateOf(""); private set
+    var serverUser by mutableStateOf(""); private set
+    var serverPass by mutableStateOf(""); private set
 
     fun init(context: Context) {
         if (::sp.isInitialized) return
@@ -31,6 +35,9 @@ object Prefs {
         dataSaver = sp.getBoolean("datasaver", false)
         eqEnabled = sp.getBoolean("eq_on", false)
         apiKey = sp.getString("api_key", "").orEmpty()
+        serverUrl = sp.getString("srv_url", "").orEmpty()
+        serverUser = sp.getString("srv_user", "").orEmpty()
+        serverPass = sp.getString("srv_pass", "").orEmpty()
         eqLevels = sp.getString("eq_levels", "").orEmpty().split(",").mapNotNull { it.toIntOrNull() }
     }
 
@@ -46,6 +53,10 @@ object Prefs {
     fun putBool(key: String, v: Boolean) { sp.edit().putBoolean(key, v).apply() }
     fun getInt(key: String, def: Int = 0): Int = sp.getInt(key, def)
     fun putInt(key: String, v: Int) { sp.edit().putInt(key, v).apply() }
+
+    fun updateServerUrl(v: String) { serverUrl = v.trim(); sp.edit().putString("srv_url", serverUrl).apply() }
+    fun updateServerUser(v: String) { serverUser = v.trim(); sp.edit().putString("srv_user", serverUser).apply() }
+    fun updateServerPass(v: String) { serverPass = v; sp.edit().putString("srv_pass", serverPass).apply() }
 
     fun updateApiKey(v: String) { apiKey = v.trim(); sp.edit().putString("api_key", apiKey).apply() }
 

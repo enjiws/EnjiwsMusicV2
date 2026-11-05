@@ -50,6 +50,7 @@ import com.enjiws.music.data.Catalog
 import com.enjiws.music.data.Prefs
 import com.enjiws.music.data.Source
 import com.enjiws.music.data.Store
+import com.enjiws.music.data.Subsonic
 import com.enjiws.music.data.Track
 import com.enjiws.music.playback.PlayerHub
 import kotlinx.coroutines.Job
@@ -76,7 +77,7 @@ object SearchState {
         loading = true
         message = "Mencari…"
         results = emptyList()
-        val sources = setOf(Source.YouTube)
+        val sources = if (Subsonic.configured) setOf(Source.YouTube, Source.Server) else setOf(Source.YouTube)
         job = AppScope.launch {
             val collected = mutableListOf<Track>()
             val counts = mutableListOf<String>()

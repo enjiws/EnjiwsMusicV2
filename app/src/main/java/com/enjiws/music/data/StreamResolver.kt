@@ -14,7 +14,7 @@ import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import androidx.compose.runtime.mutableStateMapOf
 
-data class Resolved(val url: String, val ext: String, val kbps: Int = 0)
+data class Resolved(val url: String, val ext: String, val kbps: Int = 0, val label: String = "")
 
 /**
  * Mengubah Track online jadi URL audio yang bisa diputar. URL stream YouTube/SoundCloud kedaluwarsa
@@ -29,9 +29,9 @@ object StreamResolver {
     val quality = mutableStateMapOf<String, String>()
 
     /** Kunci yang sama untuk Track lengkap maupun Track minimal dari URI resolve. */
-    fun refOf(t: Track): String = t.youtubeUrl.ifBlank { t.soundcloudUrl.ifBlank { t.pipedId.ifBlank { t.audioUrl } } }
+    fun refOf(t: Track): String = t.youtubeUrl.ifBlank { t.soundcloudUrl.ifBlank { t.pipedId.ifBlank { t.subId.ifBlank { t.audioUrl } } } }
 
-    private fun cacheKey(t: Track) = "${t.youtubeUrl}|${t.soundcloudUrl}|${t.pipedId}|${t.audioUrl}|${Prefs.dataSaver}"
+    private fun cacheKey(t: Track) = "${t.youtubeUrl}|${t.soundcloudUrl}|${t.pipedId}|${t.subId}|${t.audioUrl}|${Prefs.dataSaver}"
 
     fun invalidate(t: Track) { cache.remove(cacheKey(t)) }
 
@@ -53,11 +53,16 @@ object StreamResolver {
                     .getOrElse { throw e }
             }
             t.pipedId.isNotBlank() -> withContext(Dispatchers.IO) { Piped.stream(t.pipedId) }.let { Resolved(it.first, it.second) }
+            t.subId.isNotBlank() -> withContext(Dispatchers.IO) { Subsonic.resolve(t.subId) }
             t.audioUrl.isNotBlank() -> Resolved(t.audioUrl, "mp3")
             else -> throw IllegalStateException("Lagu ini tidak bisa diputar")
         }
         cache[k] = r to System.currentTimeMillis() + TTL_MS
-        quality[refOf(t)] = if (r.kbps > 0) "${r.ext.uppercase()} · ${r.kbps} kbps" else r.ext.uppercase()
+        quality[refOf(t)] = when {
+            r.label.isNotBlank() -> r.label
+            r.kbps > 0 -> "${r.ext.uppercase()} · ${r.kbps} kbps"
+            else -> r.ext.uppercase()
+        }
         return r
     }
 

@@ -66,6 +66,7 @@ object Catalog {
         .sortedWith(
             compareByDescending<Track> { it.title.equals(q, true) }
                 .thenByDescending { it.title.contains(q, true) }
+                .thenByDescending { it.source == "Server" }
                 .thenByDescending { it.canStream }
         )
 
@@ -89,6 +90,7 @@ object Catalog {
         Source.Audius -> searchAudius(q)
         Source.Apple -> searchApple(q)
         Source.Piped -> Piped.search(q)
+        Source.Server -> Subsonic.search(q)
     }
 
     private fun searchNewPipe(service: StreamingService, q: String, filters: List<String>, label: String): List<Track> {
@@ -154,6 +156,7 @@ object Catalog {
 
     /** Lagu terkait untuk radio otomatis. Lagu lokal / preview tidak punya rekomendasi. */
     suspend fun related(track: Track): List<Track> = withContext(Dispatchers.IO) {
+        if (track.subId.isNotBlank()) return@withContext runCatching { Subsonic.related(track.subId) }.getOrDefault(emptyList())
         if (track.pipedId.isNotBlank()) return@withContext Piped.related(track.pipedId)
         if (track.soundcloudUrl.isNotBlank()) {
             return@withContext relatedViaNewPipe(ServiceList.SoundCloud, track.soundcloudUrl, "SoundCloud")

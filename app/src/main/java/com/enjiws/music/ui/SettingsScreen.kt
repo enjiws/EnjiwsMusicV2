@@ -18,7 +18,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Button
 import androidx.compose.material3.Slider
+import androidx.compose.runtime.rememberCoroutineScope
+import com.enjiws.music.data.Subsonic
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Switch
 import com.enjiws.music.playback.AddonHub
 import com.enjiws.music.playback.AudioAddon
@@ -40,6 +44,8 @@ import com.enjiws.music.data.UiBus
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Unit) {
     var eq by remember { mutableStateOf(false) }
+    var serverStatus by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Kembali") }
@@ -77,6 +83,32 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         Text(
             "Tanpa key, mood dideteksi dengan kata kunci lokal. Dengan key, teks perasaanmu dikirim ke Claude (Anthropic) " +
                 "dan pemakaiannya ditagih ke akunmu. Key tersimpan di HP ini saja; jangan dibagikan.",
+            Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Header("Server musik pribadi (Subsonic / Navidrome)")
+        OutlinedTextField(
+            value = Prefs.serverUrl, onValueChange = { Prefs.updateServerUrl(it) }, singleLine = true,
+            label = { Text("Alamat server, mis. http://192.168.1.5:4533") },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        )
+        OutlinedTextField(
+            value = Prefs.serverUser, onValueChange = { Prefs.updateServerUser(it) }, singleLine = true,
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+        OutlinedTextField(
+            value = Prefs.serverPass, onValueChange = { Prefs.updateServerPass(it) }, singleLine = true,
+            label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        )
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { serverStatus = "Menguji…"; scope.launch { serverStatus = Subsonic.test() } }) { Text("Tes koneksi") }
+        }
+        if (serverStatus.isNotBlank()) Text(serverStatus, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            "Lagu dari servermu ikut muncul di pencarian dan diputar apa adanya (FLAC/Hi-Res tanpa transcode). " +
+                "Password tersimpan di HP ini saja.",
             Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
