@@ -166,11 +166,6 @@ object PlayerHub {
         if (index in 0 until c.mediaItemCount && index != c.currentMediaItemIndex) c.removeMediaItem(index)
     }
 
-    /** Pindahkan lagu di antrean dari posisi [from] ke [to]. */
-    fun move(from: Int, to: Int) = withController { c ->
-        if (from in 0 until c.mediaItemCount && to in 0 until c.mediaItemCount && from != to) c.moveMediaItem(from, to)
-    }
-
     fun clearUpcoming() = withController { c ->
         val from = c.currentMediaItemIndex + 1
         if (from < c.mediaItemCount) c.removeMediaItems(from, c.mediaItemCount)

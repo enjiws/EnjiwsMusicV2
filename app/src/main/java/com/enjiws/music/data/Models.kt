@@ -19,18 +19,16 @@ data class Track(
     val storeUrl: String = "",
     val pipedId: String = "",
     val album: String = "",
-    val localId: Long = 0L,
-    /** ID lagu di server Subsonic/Navidrome pribadi. */
-    val subId: String = ""
+    val localId: Long = 0L
 ) {
     val isLocal: Boolean get() = source == SOURCE_LOCAL
     val isPreview: Boolean get() = source == "Apple Music"
     val canStream: Boolean
-        get() = audioUrl.isNotBlank() || youtubeUrl.isNotBlank() || soundcloudUrl.isNotBlank() || pipedId.isNotBlank() || subId.isNotBlank()
+        get() = audioUrl.isNotBlank() || youtubeUrl.isNotBlank() || soundcloudUrl.isNotBlank() || pipedId.isNotBlank()
 
     val key: String
         get() {
-            val ref = youtubeUrl.ifBlank { soundcloudUrl.ifBlank { pipedId.ifBlank { subId.ifBlank { audioUrl } } } }
+            val ref = youtubeUrl.ifBlank { soundcloudUrl.ifBlank { pipedId.ifBlank { audioUrl } } }
             return "$source|$ref|$title|$artist"
         }
 
@@ -49,7 +47,7 @@ data class Track(
         put("title", title); put("artist", artist); put("artworkUrl", artworkUrl)
         put("durationSeconds", durationSeconds); put("source", source); put("audioUrl", audioUrl)
         put("youtubeUrl", youtubeUrl); put("soundcloudUrl", soundcloudUrl); put("storeUrl", storeUrl)
-        put("pipedId", pipedId); put("album", album); put("localId", localId); put("subId", subId)
+        put("pipedId", pipedId); put("album", album); put("localId", localId)
     }
 
     companion object {
@@ -59,7 +57,7 @@ data class Track(
             source = o.optString("source"), audioUrl = o.optString("audioUrl"),
             youtubeUrl = o.optString("youtubeUrl"), soundcloudUrl = o.optString("soundcloudUrl"),
             storeUrl = o.optString("storeUrl"), pipedId = o.optString("pipedId"),
-            album = o.optString("album"), localId = o.optLong("localId"), subId = o.optString("subId")
+            album = o.optString("album"), localId = o.optLong("localId")
         )
     }
 }
@@ -80,5 +78,5 @@ data class Lyrics(val synced: List<LyricLine> = emptyList(), val plain: String =
 }
 
 enum class Source(val label: String) {
-    YouTube("YouTube"), SoundCloud("SoundCloud"), Audius("Audius"), Apple("Apple Music"), Piped("Piped"), Server("Server")
+    YouTube("YouTube"), SoundCloud("SoundCloud"), Audius("Audius"), Apple("Apple Music"), Piped("Piped")
 }

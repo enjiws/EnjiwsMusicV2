@@ -15,13 +15,12 @@ const val RESOLVE_SCHEME = "enjiws"
  * `enjiws://resolve?...` dan TrackResolver di service mengubahnya jadi URL asli tepat saat dimuat.
  */
 fun Track.toMediaItem(): MediaItem {
-    val needsResolve = !isLocal && (youtubeUrl.isNotBlank() || soundcloudUrl.isNotBlank() || pipedId.isNotBlank() || subId.isNotBlank())
+    val needsResolve = !isLocal && (youtubeUrl.isNotBlank() || soundcloudUrl.isNotBlank() || pipedId.isNotBlank())
     val uri = if (needsResolve) {
         Uri.Builder().scheme(RESOLVE_SCHEME).authority("resolve")
             .appendQueryParameter("yt", youtubeUrl)
             .appendQueryParameter("sc", soundcloudUrl)
             .appendQueryParameter("pp", pipedId)
-            .appendQueryParameter("sub", subId)
             .build().toString()
     } else audioUrl
     val extras = Bundle().apply { putString(EXTRA_TRACK, toJson().toString()) }
@@ -58,6 +57,5 @@ fun trackFromResolveUri(uri: Uri): Track = Track(
     title = "", artist = "",
     youtubeUrl = uri.getQueryParameter("yt").orEmpty(),
     soundcloudUrl = uri.getQueryParameter("sc").orEmpty(),
-    pipedId = uri.getQueryParameter("pp").orEmpty(),
-    subId = uri.getQueryParameter("sub").orEmpty()
+    pipedId = uri.getQueryParameter("pp").orEmpty()
 )

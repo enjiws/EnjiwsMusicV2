@@ -49,34 +49,6 @@ object Catalog {
         )
     }
 
-    private val searchCache = java.util.concurrent.ConcurrentHashMap<String, Pair<List<Track>, Long>>()
-
-    /** Cari di satu sumber (timeout 8 dtk, cache 5 mnt). Melempar exception kalau gagal. */
-    suspend fun searchSource(source: Source, query: String): List<Track> {
-        val q = query.trim()
-        val key = source.name + "|" + q.lowercase()
-        searchCache[key]?.takeIf { it.second > System.currentTimeMillis() }?.let { return it.first }
-        val r = withTimeout(8_000L) { runInterruptible(Dispatchers.IO) { searchOne(source, q) } }
-        searchCache[key] = r to System.currentTimeMillis() + 5 * 60_000L
-        return r
-    }
-
-    fun sortResults(tracks: List<Track>, q: String): List<Track> = tracks
-        .filter { it.title.isNotBlank() }
-        .sortedWith(
-            compareByDescending<Track> { it.title.equals(q, true) }
-                .thenByDescending { it.title.contains(q, true) }
-                .thenByDescending { it.source == "Server" }
-                .thenByDescending { it.canStream }
-        )
-
-    /** Memanaskan NewPipe di latar belakang supaya pencarian pertama tidak lambat. */
-    fun warmUp() {
-        runCatching {
-            searchNewPipe(ServiceList.YouTube, "musik", listOf(YoutubeSearchQueryHandlerFactory.MUSIC_SONGS), "YouTube")
-        }
-    }
-
     private fun searchOne(source: Source, q: String): List<Track> = when (source) {
         Source.YouTube -> {
             val songs = runCatching {
@@ -90,7 +62,6 @@ object Catalog {
         Source.Audius -> searchAudius(q)
         Source.Apple -> searchApple(q)
         Source.Piped -> Piped.search(q)
-        Source.Server -> Subsonic.search(q)
     }
 
     private fun searchNewPipe(service: StreamingService, q: String, filters: List<String>, label: String): List<Track> {
@@ -156,34 +127,14 @@ object Catalog {
 
     /** Lagu terkait untuk radio otomatis. Lagu lokal / preview tidak punya rekomendasi. */
     suspend fun related(track: Track): List<Track> = withContext(Dispatchers.IO) {
-        if (track.subId.isNotBlank()) return@withContext runCatching { Subsonic.related(track.subId) }.getOrDefault(emptyList())
         if (track.pipedId.isNotBlank()) return@withContext Piped.related(track.pipedId)
         if (track.soundcloudUrl.isNotBlank()) {
             return@withContext relatedViaNewPipe(ServiceList.SoundCloud, track.soundcloudUrl, "SoundCloud")
         }
         val videoId = Piped.videoIdOf(track.youtubeUrl)
         if (videoId.isBlank()) return@withContext emptyList()
-        // 1) YouTube Mix (radio khusus lagu ini) -> 2) video terkait -> 3) Piped.
-        val raw = runCatching { mixViaNewPipe(videoId) }.getOrDefault(emptyList())
-            .ifEmpty { relatedViaNewPipe(ServiceList.YouTube, track.youtubeUrl, "YouTube") }
-            .ifEmpty { Piped.related(videoId) }
-        cleanRadio(raw, track)
+        relatedViaNewPipe(ServiceList.YouTube, track.youtubeUrl, "YouTube").ifEmpty { Piped.related(videoId) }
     }
-
-    private fun mixViaNewPipe(videoId: String): List<Track> {
-        val extractor = ServiceList.YouTube.getPlaylistExtractor("https://www.youtube.com/watch?v=$videoId&list=RD$videoId")
-        extractor.fetchPage()
-        return extractor.getInitialPage().getItems().filterIsInstance<StreamInfoItem>().map { it.toTrack("YouTube") }
-    }
-
-    private val notSong = Regex("""(?i)\b(full album|playlist|reaction|live stream|livestream|1 hour|2 hours|jam|compilation)\b""")
-
-    /** Buang yang jelas bukan lagu biasa: terlalu pendek/panjang, judul sama dengan lagu sekarang, mix & album penuh. */
-    private fun cleanRadio(list: List<Track>, seed: Track): List<Track> = list
-        .filter { it.title.isNotBlank() }
-        .filter { it.durationSeconds == 0L || it.durationSeconds in 60L..600L }
-        .filter { !it.title.equals(seed.title, true) && !notSong.containsMatchIn(it.title) }
-        .distinctBy { it.key }
 
     private fun relatedViaNewPipe(service: StreamingService, url: String, label: String): List<Track> =
         runCatching {

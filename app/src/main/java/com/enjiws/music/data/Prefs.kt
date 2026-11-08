@@ -16,15 +16,11 @@ object Prefs {
     var dynamicColor by mutableStateOf(false); private set
     var autoplay by mutableStateOf(true); private set
     var dataSaver by mutableStateOf(false); private set
-    var sources by mutableStateOf(setOf(Source.YouTube)); private set
+    var sources by mutableStateOf(setOf(Source.YouTube, Source.SoundCloud, Source.Audius)); private set
     var eqEnabled by mutableStateOf(false); private set
     var eqLevels by mutableStateOf<List<Int>>(emptyList()); private set
-    /** API key Claude milik pengguna untuk Mood AI. Disimpan hanya di HP ini. */
-    var apiKey by mutableStateOf(""); private set
-    /** Server musik pribadi (Subsonic/Navidrome). Disimpan hanya di HP ini. */
-    var serverUrl by mutableStateOf(""); private set
-    var serverUser by mutableStateOf(""); private set
-    var serverPass by mutableStateOf(""); private set
+    var bassBoostStrength by mutableIntStateOf(0); private set
+    var virtualizerStrength by mutableIntStateOf(0); private set
 
     fun init(context: Context) {
         if (::sp.isInitialized) return
@@ -34,31 +30,23 @@ object Prefs {
         autoplay = sp.getBoolean("autoplay", true)
         dataSaver = sp.getBoolean("datasaver", false)
         eqEnabled = sp.getBoolean("eq_on", false)
-        apiKey = sp.getString("api_key", "").orEmpty()
-        serverUrl = sp.getString("srv_url", "").orEmpty()
-        serverUser = sp.getString("srv_user", "").orEmpty()
-        serverPass = sp.getString("srv_pass", "").orEmpty()
         eqLevels = sp.getString("eq_levels", "").orEmpty().split(",").mapNotNull { it.toIntOrNull() }
+        bassBoostStrength = sp.getInt("bass_strength", 0).coerceIn(0, 1000)
+        virtualizerStrength = sp.getInt("virtualizer_strength", 0).coerceIn(0, 1000)
+        sp.getString("sources", null)?.let { raw ->
+            val parsed = raw.split(",").mapNotNull { n -> Source.values().firstOrNull { it.name == n } }.toSet()
+            if (parsed.isNotEmpty()) sources = parsed
+        }
     }
 
-    fun updateThemeMode(v: Int) { themeMode = v; sp.edit().putInt("theme", v).apply() }
-    fun updateDynamicColor(v: Boolean) { dynamicColor = v; sp.edit().putBoolean("dynamic", v).apply() }
-    fun updateAutoplay(v: Boolean) { autoplay = v; sp.edit().putBoolean("autoplay", v).apply() }
-    fun updateDataSaver(v: Boolean) { dataSaver = v; sp.edit().putBoolean("datasaver", v).apply() }
-    fun updateEqEnabled(v: Boolean) { eqEnabled = v; sp.edit().putBoolean("eq_on", v).apply() }
-    fun updateEqLevels(v: List<Int>) { eqLevels = v; sp.edit().putString("eq_levels", v.joinToString(",")).apply() }
-
-    // Penyimpanan generik untuk addon.
-    fun getBool(key: String, def: Boolean = false): Boolean = sp.getBoolean(key, def)
-    fun putBool(key: String, v: Boolean) { sp.edit().putBoolean(key, v).apply() }
-    fun getInt(key: String, def: Int = 0): Int = sp.getInt(key, def)
-    fun putInt(key: String, v: Int) { sp.edit().putInt(key, v).apply() }
-
-    fun updateServerUrl(v: String) { serverUrl = v.trim(); sp.edit().putString("srv_url", serverUrl).apply() }
-    fun updateServerUser(v: String) { serverUser = v.trim(); sp.edit().putString("srv_user", serverUser).apply() }
-    fun updateServerPass(v: String) { serverPass = v; sp.edit().putString("srv_pass", serverPass).apply() }
-
-    fun updateApiKey(v: String) { apiKey = v.trim(); sp.edit().putString("api_key", apiKey).apply() }
+    fun setThemeMode(v: Int) { themeMode = v; sp.edit().putInt("theme", v).apply() }
+    fun setDynamicColor(v: Boolean) { dynamicColor = v; sp.edit().putBoolean("dynamic", v).apply() }
+    fun setAutoplay(v: Boolean) { autoplay = v; sp.edit().putBoolean("autoplay", v).apply() }
+    fun setDataSaver(v: Boolean) { dataSaver = v; sp.edit().putBoolean("datasaver", v).apply() }
+    fun setEqEnabled(v: Boolean) { eqEnabled = v; sp.edit().putBoolean("eq_on", v).apply() }
+    fun setEqLevels(v: List<Int>) { eqLevels = v; sp.edit().putString("eq_levels", v.joinToString(",")).apply() }
+    fun setBassBoostStrength(v: Int) { bassBoostStrength = v.coerceIn(0, 1000); sp.edit().putInt("bass_strength", bassBoostStrength).apply() }
+    fun setVirtualizerStrength(v: Int) { virtualizerStrength = v.coerceIn(0, 1000); sp.edit().putInt("virtualizer_strength", virtualizerStrength).apply() }
 
     fun toggleSource(s: Source) {
         val next = if (s in sources) sources - s else sources + s

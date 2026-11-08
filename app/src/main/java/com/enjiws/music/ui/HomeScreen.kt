@@ -68,7 +68,6 @@ fun HomeScreen(
                     Text("Cari lagu, artis, atau album", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            MoodCard()
         }
 
         if (empty) {

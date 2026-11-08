@@ -5,15 +5,11 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
-import com.enjiws.music.data.AppScope
-import com.enjiws.music.data.Catalog
 import com.enjiws.music.data.Http
 import com.enjiws.music.data.LocalArtFetcher
 import com.enjiws.music.data.NewPipeDownloader
 import com.enjiws.music.data.Prefs
 import com.enjiws.music.data.Store
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.localization.Localization
 
@@ -24,7 +20,6 @@ class EnjiwsApp : Application(), ImageLoaderFactory {
         Store.init(this)
         // Satu-satunya tempat NewPipe diinisialisasi.
         NewPipe.init(NewPipeDownloader(), Localization("id", "ID"))
-        AppScope.launch(Dispatchers.IO) { Catalog.warmUp() }
     }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
