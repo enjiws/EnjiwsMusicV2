@@ -93,9 +93,6 @@ object PlayerHub {
     /** Posisi saat ini (ms). Dibaca langsung dari pemutar, hanya oleh UI yang sedang tampil. */
     fun position(): Long = controller?.currentPosition?.coerceAtLeast(0L) ?: 0L
 
-    /** Audio session id pemutar (untuk Visualizer). 0 bila belum terhubung. */
-    fun audioSessionId(): Int = controller?.audioSessionId ?: 0
-
     // ------------------------------------------------------------- memutar
 
     /** Putar [tracks] mulai dari [startIndex]. Daftar panjang dipotong jadi jendela supaya IPC ringan. */

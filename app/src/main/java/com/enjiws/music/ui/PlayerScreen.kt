@@ -580,7 +580,7 @@ private fun fftToBars(fft: ByteArray): FloatArray {
 @Composable
 private fun VisualizerBars(modifier: Modifier = Modifier) {
     val s by PlayerHub.state.collectAsState()
-    val sessionId = PlayerHub.audioSessionId()
+    val sessionId by AudioFx.sessionId.collectAsState()
     val shown = remember { FloatArray(VBARS) { 0.04f } }
     var magnitudes by remember { mutableStateOf(FloatArray(VBARS) { 0.04f }) }
     val playingFactor by animateFloatAsState(if (s.isPlaying) 1f else 0.12f, tween(400), label = "vplay")
