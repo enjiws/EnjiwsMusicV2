@@ -18,8 +18,10 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -33,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -85,11 +88,18 @@ fun MainApp(onExport: () -> Unit, onImport: () -> Unit) {
                     Column {
                         MiniPlayer(onOpen = { showPlayer = true })
                         if (topLevel) {
-                            NavigationBar {
+                            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
                                 topDests.forEach { d ->
                                     NavigationBarItem(
                                         selected = route == d.route, onClick = { go(d.route) },
-                                        icon = { Icon(d.icon, d.label) }, label = { Text(d.label) }
+                                        icon = { Icon(d.icon, d.label) }, label = { Text(d.label) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = Color(0xFF0B1500),
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor = MaterialTheme.colorScheme.primary,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     )
                                 }
                             }

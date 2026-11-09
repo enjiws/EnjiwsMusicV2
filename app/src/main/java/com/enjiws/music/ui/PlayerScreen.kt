@@ -100,6 +100,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -199,6 +200,14 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             val scale by animateFloatAsState(if (s.isPlaying) 1f else 0.9f, tween(400), label = "scale")
                             val side = minOf(maxWidth, maxHeight)
+                            val density = LocalDensity.current
+                            val glowRadius = with(density) { (side * 0.75f).toPx() }
+                            Box(
+                                Modifier.size(side * 1.25f).background(
+                                    Brush.radialGradient(listOf(Emerald.copy(alpha = 0.35f), Color.Transparent), radius = glowRadius),
+                                    CircleShape
+                                )
+                            )
                             CoverBox(
                                 track.cover,
                                 Modifier.size(side).shadow(24.dp, RoundedCornerShape(20.dp), spotColor = bg).graphicsLayer { scaleX = scale; scaleY = scale },

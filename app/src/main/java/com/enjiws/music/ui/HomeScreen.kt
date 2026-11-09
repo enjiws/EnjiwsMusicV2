@@ -1,8 +1,10 @@
 package com.enjiws.music.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -19,6 +22,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LibraryMusic
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Button
@@ -32,11 +36,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.enjiws.music.data.LocalLibrary
 import com.enjiws.music.data.Store
+import com.enjiws.music.data.Track
 import com.enjiws.music.playback.PlayerHub
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -80,6 +89,10 @@ fun HomeScreen(
                     Spacer(Modifier.width(12.dp))
                     Text("Cari lagu, artis, atau album", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+            if (history.isNotEmpty()) {
+                val hero = history.first().track
+                HeroCard(hero) { PlayerHub.play(history.take(15).map { it.track }, 0) }
             }
             MoodCard()
         }
@@ -149,5 +162,35 @@ fun HomeScreen(
             }
         }
         item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+/** Kartu hero editorial: lagu terakhir yang diputar, dengan glow emerald. */
+@Composable
+private fun HeroCard(track: Track, onPlay: () -> Unit) {
+    Surface(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
+    ) {
+        Box(Modifier.background(Brush.verticalGradient(listOf(Emerald.copy(alpha = 0.20f), Color.Transparent)))) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Cover(track.cover, 104.dp, radius = 16.dp)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("LANJUTKAN MENDENGARKAN", color = Lime, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Text(track.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(track.artist, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                IconButton(
+                    onClick = onPlay,
+                    modifier = Modifier.size(52.dp).clip(CircleShape).background(AccentGradient)
+                ) {
+                    Icon(Icons.Rounded.PlayArrow, "Putar", tint = Color(0xFF0B1500), modifier = Modifier.size(28.dp))
+                }
+            }
+        }
     }
 }
