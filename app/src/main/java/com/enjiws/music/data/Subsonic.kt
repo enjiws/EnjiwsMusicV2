@@ -89,7 +89,10 @@ object Subsonic {
             val khz = if (hz % 1000 == 0) "${hz / 1000}" else "%.1f".format(hz / 1000.0)
             "${suffix.uppercase()} · $bits-bit/$khz kHz"
         } else ""
-        return Resolved(url("stream", "id=${enc(id)}&format=raw"), suffix, kbps, label)
+        val channels = song?.optInt("channelCount") ?: 0
+        val lossless = suffix.lowercase() in setOf("flac", "alac", "wav", "wave", "aiff", "aif", "ape", "wv", "dsf", "dff")
+        val info = AudioInfo(format = suffix.uppercase(), sampleRateHz = hz, bitDepth = bits, kbps = kbps, channels = channels, lossless = lossless)
+        return Resolved(url("stream", "id=${enc(id)}&format=raw"), suffix, kbps, label, info)
     }
 
     /** Untuk tombol "Tes koneksi" di Pengaturan. */

@@ -17,7 +17,16 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Button
+import androidx.compose.material3.Slider
+import androidx.compose.runtime.rememberCoroutineScope
+import com.enjiws.music.data.Subsonic
+import kotlinx.coroutines.launch
 import androidx.compose.material3.Switch
+import com.enjiws.music.playback.AddonHub
+import com.enjiws.music.playback.AudioAddon
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,7 +35,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.enjiws.music.playback.BitPerfect
+import com.enjiws.music.playback.PlayerVolume
 import com.enjiws.music.data.Prefs
 import com.enjiws.music.data.Source
 import com.enjiws.music.data.Store
@@ -35,6 +47,9 @@ import com.enjiws.music.data.UiBus
 @Composable
 fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Unit) {
     var eq by remember { mutableStateOf(false) }
+    var serverStatus by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Kembali") }
@@ -44,27 +59,83 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         Header("Tampilan")
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Sistem", "Gelap", "Terang").forEachIndexed { i, label ->
-                FilterChip(selected = Prefs.themeMode == i, onClick = { Prefs.setThemeMode(i) }, label = { Text(label) })
+                FilterChip(selected = Prefs.themeMode == i, onClick = { Prefs.updateThemeMode(i) }, label = { Text(label) })
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            SwitchRow("Warna dinamis", "Ikuti warna wallpaper (Android 12+)", Prefs.dynamicColor) { Prefs.setDynamicColor(it) }
+            SwitchRow("Warna dinamis", "Ikuti warna wallpaper (Android 12+)", Prefs.dynamicColor) { Prefs.updateDynamicColor(it) }
         }
 
         Header("Pemutaran")
-        SwitchRow("Radio otomatis", "Tambahkan lagu terkait saat antrean habis", Prefs.autoplay) { Prefs.setAutoplay(it) }
-        SwitchRow("Hemat data", "Pilih kualitas audio online yang lebih rendah", Prefs.dataSaver) { Prefs.setDataSaver(it) }
+        SwitchRow("Radio otomatis", "Tambahkan lagu terkait saat antrean habis", Prefs.autoplay) { Prefs.updateAutoplay(it) }
+        SwitchRow("Hemat data", "Pilih kualitas audio online yang lebih rendah", Prefs.dataSaver) { Prefs.updateDataSaver(it) }
         ActionRow("Equalizer", "Atur frekuensi suara") { eq = true }
 
-        Header("Sumber pencarian")
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Source.values().take(3).forEach { s -> FilterChip(selected = s in Prefs.sources, onClick = { Prefs.toggleSource(s) }, label = { Text(s.label) }) }
-        }
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Source.values().drop(3).forEach { s -> FilterChip(selected = s in Prefs.sources, onClick = { Prefs.toggleSource(s) }, label = { Text(s.label) }) }
+        Header("Audio engine")
+        Text("ReplayGain (samakan volume antar lagu)", Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium)
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Mati", "Lagu", "Album").forEachIndexed { i, label ->
+                FilterChip(
+                    selected = Prefs.replayGain == i,
+                    onClick = { Prefs.updateReplayGain(i); PlayerVolume.recompute() },
+                    label = { Text(label) }
+                )
+            }
         }
         Text(
-            "Apple Music hanya menyediakan pratinjau 30 detik. Piped bergantung pada server pihak ketiga yang sering tidak stabil.",
+            "Memakai tag ReplayGain di file (FLAC, MP3, M4A) dan hanya meredam volume. Lagu YouTube tidak punya tag.",
+            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        SwitchRow("Output 32-bit float", "Eksperimental. Berlaku setelah aplikasi ditutup dan dibuka lagi.", Prefs.floatOutput) { Prefs.updateFloatOutput(it) }
+        if (Build.VERSION.SDK_INT >= 34) {
+            SwitchRow("Bit-perfect USB DAC", "Eksperimental, Android 14+. Butuh DAC USB yang tersambung.", Prefs.bitPerfect) {
+                Prefs.updateBitPerfect(it)
+                UiBus.toast(BitPerfect.apply(context, it))
+            }
+        }
+
+        Header("Addon audio")
+        AddonHub.all.forEach { AddonCard(it) }
+        Text(
+            "Efek aktif saat lagu diputar. Tidak semua perangkat mendukung semua efek.",
+            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Header("Mood AI (opsional)")
+        OutlinedTextField(
+            value = Prefs.apiKey, onValueChange = { Prefs.updateApiKey(it) }, singleLine = true,
+            label = { Text("API key Claude") }, visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        )
+        Text(
+            "Tanpa key, mood dideteksi dengan kata kunci lokal. Dengan key, teks perasaanmu dikirim ke Claude (Anthropic) " +
+                "dan pemakaiannya ditagih ke akunmu. Key tersimpan di HP ini saja; jangan dibagikan.",
+            Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Header("Server musik pribadi (Subsonic / Navidrome)")
+        OutlinedTextField(
+            value = Prefs.serverUrl, onValueChange = { Prefs.updateServerUrl(it) }, singleLine = true,
+            label = { Text("Alamat server, mis. http://192.168.1.5:4533") },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        )
+        OutlinedTextField(
+            value = Prefs.serverUser, onValueChange = { Prefs.updateServerUser(it) }, singleLine = true,
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+        OutlinedTextField(
+            value = Prefs.serverPass, onValueChange = { Prefs.updateServerPass(it) }, singleLine = true,
+            label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        )
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = { serverStatus = "Menguji…"; scope.launch { serverStatus = Subsonic.test() } }) { Text("Tes koneksi") }
+        }
+        if (serverStatus.isNotBlank()) Text(serverStatus, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodyMedium)
+        Text(
+            "Lagu dari servermu ikut muncul di pencarian dan diputar apa adanya (FLAC/Hi-Res tanpa transcode). " +
+                "Password tersimpan di HP ini saja.",
             Modifier.padding(16.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
@@ -78,6 +149,29 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         Text("", Modifier.padding(bottom = 24.dp))
     }
     if (eq) EqualizerSheet { eq = false }
+}
+
+@Composable
+fun AddonCard(a: AudioAddon) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(a.title, style = MaterialTheme.typography.bodyLarge)
+                Text(a.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = a.enabled, onCheckedChange = { a.updateEnabled(it) })
+        }
+        if (a.enabled) {
+            Slider(
+                value = a.level.toFloat(), onValueChange = { a.updateLevel(it.toInt()) },
+                onValueChangeFinished = { a.commitLevel() }, valueRange = 0f..a.maxLevel.toFloat()
+            )
+            Text(a.levelLabel(a.level), style = MaterialTheme.typography.bodySmall)
+        }
+        if (!a.supported) {
+            Text("Tidak didukung di perangkat ini", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+    }
 }
 
 @Composable

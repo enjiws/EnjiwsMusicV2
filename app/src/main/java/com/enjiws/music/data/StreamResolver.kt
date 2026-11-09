@@ -12,8 +12,9 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
+import androidx.compose.runtime.mutableStateMapOf
 
-data class Resolved(val url: String, val ext: String)
+data class Resolved(val url: String, val ext: String, val kbps: Int = 0, val label: String = "", val info: AudioInfo? = null)
 
 /**
  * Mengubah Track online jadi URL audio yang bisa diputar. URL stream YouTube/SoundCloud kedaluwarsa
@@ -24,7 +25,20 @@ object StreamResolver {
     private const val TTL_MS = 20 * 60_000L
     private val cache = ConcurrentHashMap<String, Pair<Resolved, Long>>()
 
-    private fun cacheKey(t: Track) = "${t.youtubeUrl}|${t.soundcloudUrl}|${t.pipedId}|${t.audioUrl}|${Prefs.dataSaver}"
+    /** Label kualitas per lagu (mis. "OPUS · 160 kbps"), dibaca UI untuk badge di pemutar. */
+    val quality = mutableStateMapOf<String, String>()
+
+    /** Kunci yang sama untuk Track lengkap maupun Track minimal dari URI resolve. */
+    fun refOf(t: Track): String = t.youtubeUrl.ifBlank { t.soundcloudUrl.ifBlank { t.pipedId.ifBlank { t.subId.ifBlank { t.audioUrl } } } }
+
+    private fun cacheKey(t: Track) = "${t.youtubeUrl}|${t.soundcloudUrl}|${t.pipedId}|${t.subId}|${t.audioUrl}|${Prefs.dataSaver}"
+
+    private fun formatName(ext: String): String = when (ext.lowercase()) {
+        "m4a", "aac" -> "AAC"
+        "webm", "opus" -> "OPUS"
+        "mp3" -> "MP3"
+        else -> ext.uppercase()
+    }
 
     fun invalidate(t: Track) { cache.remove(cacheKey(t)) }
 
@@ -46,21 +60,30 @@ object StreamResolver {
                     .getOrElse { throw e }
             }
             t.pipedId.isNotBlank() -> withContext(Dispatchers.IO) { Piped.stream(t.pipedId) }.let { Resolved(it.first, it.second) }
+            t.subId.isNotBlank() -> withContext(Dispatchers.IO) { Subsonic.resolve(t.subId) }
             t.audioUrl.isNotBlank() -> Resolved(t.audioUrl, "mp3")
             else -> throw IllegalStateException("Lagu ini tidak bisa diputar")
         }
         cache[k] = r to System.currentTimeMillis() + TTL_MS
+        quality[refOf(t)] = when {
+            r.label.isNotBlank() -> r.label
+            r.kbps > 0 -> "${r.ext.uppercase()} · ${r.kbps} kbps"
+            else -> r.ext.uppercase()
+        }
+        AudioInfoRepo.info[refOf(t)] = r.info ?: AudioInfo(format = formatName(r.ext), kbps = r.kbps)
         return r
     }
 
     private suspend fun fromNewPipe(service: StreamingService, pageUrl: String): Resolved =
         withContext(Dispatchers.IO) {
-            val info = StreamInfo.getInfo(service, pageUrl)
-            val all = info.getAudioStreams()
+            // Extractor langsung (bukan StreamInfo.getInfo) -> tidak ikut mengurai lagu terkait & metadata.
+            val extractor = service.getStreamExtractor(pageUrl)
+            extractor.fetchPage()
+            val all = extractor.getAudioStreams()
             val usable = all.filter { it.isUrl() }
             val progressive = usable.filter { it.getDeliveryMethod() == DeliveryMethod.PROGRESSIVE_HTTP }
-            val compatible = progressive.filter { it.getFormat() == MediaFormat.M4A || it.getFormat() == MediaFormat.MP3 }
-                .ifEmpty { progressive }
+            // Semua format progresif ikut dipertimbangkan (termasuk Opus), lalu diambil bitrate tertinggi.
+            val compatible = progressive
             val best = if (Prefs.dataSaver) {
                 compatible.filter { it.getAverageBitrate() > 0 }.minByOrNull { it.getAverageBitrate() }
                     ?: compatible.firstOrNull()
@@ -75,7 +98,7 @@ object StreamResolver {
                 MediaFormat.OPUS -> "opus"
                 else -> "mp3"
             }
-            Resolved(chosen.getContent(), ext)
+            Resolved(chosen.getContent(), ext, chosen.getAverageBitrate().coerceAtLeast(0))
         }
 }
 

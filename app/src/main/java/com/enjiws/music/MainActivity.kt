@@ -13,6 +13,8 @@ import androidx.core.content.ContextCompat
 import com.enjiws.music.data.AppScope
 import com.enjiws.music.data.LocalLibrary
 import com.enjiws.music.data.Store
+import com.enjiws.music.playback.BitPerfect
+import com.enjiws.music.data.Prefs
 import com.enjiws.music.data.UiBus
 import com.enjiws.music.playback.PlayerHub
 import com.enjiws.music.ui.EnjiwsTheme
@@ -64,6 +66,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         LocalLibrary.permitted = hasAudioPermission()
         LocalLibrary.refresh(this)
+        if (Prefs.bitPerfect) BitPerfect.apply(this, true)
     }
 
     private fun hasAudioPermission() =

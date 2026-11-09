@@ -1,6 +1,15 @@
 package com.enjiws.music.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +54,7 @@ fun QueueSheet(onDismiss: () -> Unit) {
     val state = rememberLazyListState()
     var saving by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { if (s.index > 0) state.scrollToItem(s.index) }
+    val rowPx = with(LocalDensity.current) { 56.dp.toPx() }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding()) {
@@ -59,8 +69,13 @@ fun QueueSheet(onDismiss: () -> Unit) {
             LazyColumn(state = state, modifier = Modifier.weight(1f, fill = false)) {
                 itemsIndexed(s.queue, key = { i, t -> "$i${t.id}" }) { i, t ->
                     val current = i == s.index
+                    var drag by remember { mutableFloatStateOf(0f) }
                     Row(
-                        Modifier.fillMaxWidth().clickable { PlayerHub.skipTo(i) }.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                        Modifier.fillMaxWidth().height(56.dp)
+                            .zIndex(if (drag != 0f) 1f else 0f)
+                            .graphicsLayer { translationY = drag }
+                            .clickable { PlayerHub.skipTo(i) }
+                            .padding(start = 16.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Cover(t.cover, 44.dp, radius = 8.dp)
@@ -76,7 +91,22 @@ fun QueueSheet(onDismiss: () -> Unit) {
                         else IconButton(onClick = { PlayerHub.removeAt(i) }) {
                             Icon(Icons.Rounded.Close, "Hapus dari antrean", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        if (current) Spacer(Modifier.width(16.dp))
+                        // Pegangan: tarik ke atas/bawah untuk memindahkan lagu.
+                        Icon(
+                            Icons.Rounded.DragHandle, "Geser untuk memindahkan",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 12.dp).pointerInput(i) {
+                                detectVerticalDragGestures(
+                                    onDragEnd = {
+                                        val to = (i + (drag / rowPx).roundToInt()).coerceIn(0, s.queue.lastIndex)
+                                        drag = 0f
+                                        if (to != i) PlayerHub.move(i, to)
+                                    },
+                                    onDragCancel = { drag = 0f },
+                                    onVerticalDrag = { change, amount -> change.consume(); drag += amount }
+                                )
+                            }
+                        )
                     }
                 }
             }

@@ -4,8 +4,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.audiofx.Equalizer
-import android.media.audiofx.BassBoost
-import android.media.audiofx.Virtualizer
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -15,13 +13,15 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -84,10 +84,12 @@ class PlaybackService : MediaSessionService() {
             .setAllowCrossProtocolRedirects(true)
         val dataSource = DefaultDataSource.Factory(this, ResolvingDataSource.Factory(http, resolver))
 
-        val renderers = DefaultRenderersFactory(this)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
-        player = ExoPlayer.Builder(this, renderers)
+        player = ExoPlayer.Builder(this, DefaultRenderersFactory(this).setEnableAudioFloatOutput(Prefs.floatOutput))
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSource))
+            // Mulai bunyi setelah 1 dtk audio terisi (bawaan 2,5 dtk).
+            .setLoadControl(
+                DefaultLoadControl.Builder().setBufferDurationsMs(15_000, 60_000, 1_000, 2_000).build()
+            )
             .setAudioAttributes(
                 AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
                 true // audio focus dikelola ExoPlayer
@@ -99,6 +101,7 @@ class PlaybackService : MediaSessionService() {
         restoreQueue()
         player.addListener(playerListener)
         SleepTimer.attach(player)
+        PlayerVolume.attach(player)
         AudioFx.attach(player.audioSessionId)
 
         val openApp = PendingIntent.getActivity(
@@ -123,6 +126,7 @@ class PlaybackService : MediaSessionService() {
         saveQueue()
         scope.cancel()
         SleepTimer.attach(null)
+        PlayerVolume.attach(null)
         AudioFx.release()
         session?.run { player.release(); release() }
         session = null
@@ -135,6 +139,7 @@ class PlaybackService : MediaSessionService() {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
             retriedId = null
             maybeExtendQueue()
+            prefetchNext()
             scheduleSave()
         }
 
@@ -147,6 +152,7 @@ class PlaybackService : MediaSessionService() {
                     item.toTrack()?.let { Store.recordPlay(it) }
                 }
                 maybeExtendQueue()
+                prefetchNext()
             }
             scheduleSave()
         }
@@ -160,6 +166,8 @@ class PlaybackService : MediaSessionService() {
                 SleepTimer.onEndOfTrackReached()
             }
         }
+
+        override fun onTracksChanged(tracks: Tracks) = PlayerVolume.onTracks(tracks)
 
         override fun onPlayerError(error: PlaybackException) = handleError(error)
     }
@@ -187,6 +195,15 @@ class PlaybackService : MediaSessionService() {
             player.prepare()
             player.play()
         }
+    }
+
+    /** Resolve URL lagu berikutnya di latar belakang, jadi pindah lagu tidak menunggu lagi. */
+    private fun prefetchNext() {
+        val ni = player.nextMediaItemIndex
+        if (ni == C.INDEX_UNSET) return
+        val t = player.getMediaItemAt(ni).toTrack() ?: return
+        if (t.isLocal || !t.canStream) return
+        scope.launch(Dispatchers.IO) { runCatching { StreamResolver.resolve(t) } }
     }
 
     // ------------------------------------------------------------ radio otomatis
@@ -268,7 +285,10 @@ object SleepTimer {
             val left = endAt - SystemClock.elapsedRealtime()
             if (left <= 0) { fire(); return }
             remainingMs.value = left
-            if (left < 10_000) player?.volume = (left / 10_000f).coerceIn(0f, 1f)
+            if (left < 10_000) {
+                PlayerVolume.fade = (left / 10_000f).coerceIn(0f, 1f)
+                PlayerVolume.apply()
+            }
             handler.postDelayed(this, 500)
         }
     }
@@ -294,7 +314,8 @@ object SleepTimer {
     fun cancel() {
         handler.removeCallbacks(tick)
         remainingMs.value = null
-        player?.volume = 1f
+        PlayerVolume.fade = 1f
+        PlayerVolume.apply()
         if (untilEndOfTrack.value) {
             player?.pauseAtEndOfMediaItems = false
             untilEndOfTrack.value = false
@@ -316,8 +337,6 @@ object SleepTimer {
 /** Equalizer sistem yang dipasang pada audio session ExoPlayer. */
 object AudioFx {
     private var eq: Equalizer? = null
-    private var bass: BassBoost? = null
-    private var virtualizer: Virtualizer? = null
     val ready = MutableStateFlow(false)
 
     val bands: Int get() = eq?.numberOfBands?.toInt() ?: 0
@@ -327,6 +346,7 @@ object AudioFx {
     fun attach(sessionId: Int) {
         release()
         if (sessionId == C.AUDIO_SESSION_ID_UNSET || sessionId == 0) return
+        AddonHub.attach(sessionId)
         runCatching {
             val e = Equalizer(0, sessionId)
             val saved = Prefs.eqLevels
@@ -340,8 +360,9 @@ object AudioFx {
     }
 
     fun release() {
-        runCatching { eq?.release() }; runCatching { bass?.release() }; runCatching { virtualizer?.release() }
-        eq = null; bass = null; virtualizer = null
+        AddonHub.releaseAll()
+        runCatching { eq?.release() }
+        eq = null
         ready.value = false
     }
 
@@ -356,7 +377,7 @@ object AudioFx {
         runCatching { eq?.setBandLevel(band.toShort(), level.toShort()) }
     }
 
-    fun commitLevels() = Prefs.setEqLevels((0 until bands).map { level(it) })
+    fun commitLevels() = Prefs.updateEqLevels((0 until bands).map { level(it) })
 
     fun presets(): List<String> {
         val e = eq ?: return emptyList()
@@ -370,13 +391,6 @@ object AudioFx {
 
     fun setEnabled(on: Boolean) {
         runCatching { eq?.enabled = on }
-        Prefs.setEqEnabled(on)
-    }
-
-    fun setBassBoost(value: Int) {
-        val v = value.coerceIn(0, 1000); runCatching { bass?.setStrength(v.toShort()); bass?.enabled = v > 0 }; Prefs.setBassBoostStrength(v)
-    }
-    fun setVirtualizer(value: Int) {
-        val v = value.coerceIn(0, 1000); runCatching { virtualizer?.setStrength(v.toShort()); virtualizer?.enabled = v > 0 }; Prefs.setVirtualizerStrength(v)
+        Prefs.updateEqEnabled(on)
     }
 }
