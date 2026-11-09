@@ -215,7 +215,7 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                     Text(track.title, color = white, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(track.artist, color = white.copy(0.65f), fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                CircleButton(if (fav) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit", { Store.toggleFavorite(track) }, tint = if (fav) Lime else Color.White)
+                CircleButton(if (fav) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit", tint = if (fav) Lime else Color.White) { Store.toggleFavorite(track) }
                 Spacer(Modifier.width(8.dp))
                 CircleButton(Icons.Rounded.MoreHoriz, "Menu") { openMenu(track, null) }
             }
@@ -287,7 +287,7 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
 }
 
 @Composable
-private fun CircleButton(icon: ImageVector, desc: String, onClick: () -> Unit, tint: Color = Color.White) {
+private fun CircleButton(icon: ImageVector, desc: String, tint: Color = Color.White, onClick: () -> Unit) {
     Box(
         Modifier.size(38.dp).clip(CircleShape).background(Color.White.copy(0.14f))
             .border(1.dp, Color.White.copy(0.1f), CircleShape).clickable(onClick = onClick),
