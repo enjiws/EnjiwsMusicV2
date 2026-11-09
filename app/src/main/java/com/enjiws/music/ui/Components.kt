@@ -238,7 +238,7 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
                 IconButton(onClick = { PlayerHub.previous() }) { Icon(Icons.Rounded.SkipPrevious, "Sebelumnya") }
                 IconButton(
                     onClick = { PlayerHub.togglePlay() },
-                    modifier = Modifier.size(46.dp).clip(RoundedCornerShape(50)).background(AccentGradient)
+                    modifier = Modifier.size(46.dp).clip(RoundedCornerShape(50)).background(accentGradient())
                 ) {
                     Icon(if (s.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (s.isPlaying) "Jeda" else "Putar",
                         tint = Color(0xFF0B1500))

@@ -1,17 +1,23 @@
 package com.enjiws.music.ui
 
 import android.os.Build
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -35,6 +41,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.enjiws.music.playback.BitPerfect
@@ -60,6 +68,19 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("Sistem", "Gelap", "Terang").forEachIndexed { i, label ->
                 FilterChip(selected = Prefs.themeMode == i, onClick = { Prefs.updateThemeMode(i) }, label = { Text(label) })
+            }
+        }
+        Text("Warna aksen", Modifier.padding(start = 16.dp, top = 12.dp, bottom = 8.dp), style = MaterialTheme.typography.bodyMedium)
+        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Accents.forEachIndexed { i, a ->
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape).background(a.color)
+                        .border(2.dp, if (Prefs.accent == i) Color.White else Color.Transparent, CircleShape)
+                        .clickable { Prefs.updateAccent(i) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (Prefs.accent == i) Icon(Icons.Rounded.Check, null, tint = a.onColor, modifier = Modifier.size(20.dp))
+                }
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

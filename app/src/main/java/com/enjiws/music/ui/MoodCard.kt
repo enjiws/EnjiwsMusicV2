@@ -89,7 +89,7 @@ fun MoodCard() {
     ) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(32.dp).clip(CircleShape).background(AccentGradient), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(32.dp).clip(CircleShape).background(accentGradient()), contentAlignment = Alignment.Center) {
                     Icon(Icons.Rounded.AutoAwesome, null, tint = Color(0xFF0B1500), modifier = Modifier.size(16.dp))
                 }
                 Spacer(Modifier.width(8.dp))

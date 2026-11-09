@@ -187,7 +187,7 @@ private fun HeroCard(track: Track, onPlay: () -> Unit) {
                 }
                 IconButton(
                     onClick = onPlay,
-                    modifier = Modifier.size(52.dp).clip(CircleShape).background(AccentGradient)
+                    modifier = Modifier.size(52.dp).clip(CircleShape).background(accentGradient())
                 ) {
                     Icon(Icons.Rounded.PlayArrow, "Putar", tint = Color(0xFF0B1500), modifier = Modifier.size(28.dp))
                 }
