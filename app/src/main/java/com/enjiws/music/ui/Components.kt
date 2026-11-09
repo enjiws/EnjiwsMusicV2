@@ -9,6 +9,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,6 +66,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -107,12 +109,12 @@ fun rememberPosition(intervalMs: Long = 500L): State<Long> {
 // ------------------------------------------------------------- gambar
 
 @Composable
-fun Cover(model: Any?, size: Dp, modifier: Modifier = Modifier, radius: Dp = 10.dp) {
+fun Cover(model: Any?, size: Dp, modifier: Modifier = Modifier, radius: Dp = 12.dp) {
     CoverBox(model, modifier.size(size), radius, iconSize = size * 0.45f)
 }
 
 @Composable
-fun CoverBox(model: Any?, modifier: Modifier, radius: Dp = 10.dp, iconSize: Dp = 28.dp) {
+fun CoverBox(model: Any?, modifier: Modifier, radius: Dp = 12.dp, iconSize: Dp = 28.dp) {
     Box(
         modifier.clip(RoundedCornerShape(radius)).background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center
@@ -144,8 +146,8 @@ fun PlayingBars(active: Boolean = true, color: Color = MaterialTheme.colorScheme
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
-    Row(modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+    Row(modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
         action?.invoke()
     }
 }
@@ -177,15 +179,15 @@ fun TrackRow(
     val current = now.track?.key == track.key
     val openMenu = LocalTrackMenu.current
     Row(
-        modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+        modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Cover(track.cover, 52.dp)
+        Cover(track.cover, 56.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 track.title, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold,
                 color = if (current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
             )
             val sub = buildString {
@@ -216,14 +218,17 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val pos by rememberPosition(500)
     val progress = if (s.durationMs > 0) (pos.toFloat() / s.durationMs).coerceIn(0f, 1f) else 0f
     Surface(
-        modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp).clickable(onClick = onOpen),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
+            .shadow(12.dp, RoundedCornerShape(24.dp), spotColor = Color.Black.copy(alpha = 0.6f))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp))
+            .clickable(onClick = onOpen),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
         tonalElevation = 2.dp
     ) {
         Column {
             Row(Modifier.padding(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Cover(track.cover, 44.dp, radius = 8.dp)
+                Cover(track.cover, 48.dp, radius = 12.dp)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -233,15 +238,15 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
                 IconButton(onClick = { PlayerHub.previous() }) { Icon(Icons.Rounded.SkipPrevious, "Sebelumnya") }
                 IconButton(
                     onClick = { PlayerHub.togglePlay() },
-                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary)
+                    modifier = Modifier.size(46.dp).clip(RoundedCornerShape(50)).background(AccentGradient)
                 ) {
                     Icon(if (s.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (s.isPlaying) "Jeda" else "Putar",
-                        tint = MaterialTheme.colorScheme.onPrimary)
+                        tint = Color(0xFF0B1500))
                 }
                 IconButton(onClick = { PlayerHub.next() }) { Icon(Icons.Rounded.SkipNext, "Berikutnya") }
             }
-            if (s.buffering) LinearProgressIndicator(Modifier.fillMaxWidth().height(3.dp))
-            else LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(3.dp),
+            if (s.buffering) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
+            else LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(2.dp),
                 trackColor = Color.Transparent)
         }
     }
@@ -368,10 +373,10 @@ fun NameDialog(title: String, initial: String = "", confirm: String = "Simpan", 
 /** Kartu persegi (cover + judul + subjudul) untuk baris horizontal di Beranda. */
 @Composable
 fun SquareCard(cover: Any?, title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.width(132.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(4.dp)) {
-        CoverBox(cover, Modifier.size(124.dp), radius = 12.dp, iconSize = 44.dp)
-        Spacer(Modifier.height(6.dp))
-        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+    Column(modifier.width(140.dp).clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(4.dp)) {
+        CoverBox(cover, Modifier.size(132.dp).shadow(8.dp, RoundedCornerShape(16.dp), spotColor = Color.Black.copy(alpha = 0.5f)), radius = 16.dp, iconSize = 44.dp)
+        Spacer(Modifier.height(8.dp))
+        Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

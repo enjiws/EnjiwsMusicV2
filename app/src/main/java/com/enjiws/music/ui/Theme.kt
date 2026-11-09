@@ -2,7 +2,9 @@ package com.enjiws.music.ui
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -10,17 +12,23 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import android.app.Activity
 import com.enjiws.music.data.Prefs
 
 val Lime = Color(0xFF8AFF00)
+val LimeYellow = Color(0xFFFFEA00)
+
+/** Gradien aksen khas EW (lime → kuning) untuk tombol putar utama. */
+val AccentGradient = Brush.linearGradient(listOf(Lime, LimeYellow))
 
 private val Dark = darkColorScheme(
     primary = Lime, onPrimary = Color(0xFF0B1500),
@@ -28,12 +36,12 @@ private val Dark = darkColorScheme(
     secondary = Color(0xFFB6CCA0), onSecondary = Color(0xFF1F3010),
     secondaryContainer = Color(0xFF2E4220), onSecondaryContainer = Color(0xFFD1E8BA),
     tertiary = Color(0xFFFFEA00), onTertiary = Color(0xFF211C00),
-    background = Color(0xFF0A0D09), onBackground = Color(0xFFE4E9DE),
-    surface = Color(0xFF0A0D09), onSurface = Color(0xFFE4E9DE),
+    background = Color(0xFF070907), onBackground = Color(0xFFE4E9DE),
+    surface = Color(0xFF070907), onSurface = Color(0xFFE4E9DE),
     surfaceVariant = Color(0xFF2D352A), onSurfaceVariant = Color(0xFFB3BDAA),
-    surfaceContainerLowest = Color(0xFF060805), surfaceContainerLow = Color(0xFF0F130E),
-    surfaceContainer = Color(0xFF141913), surfaceContainerHigh = Color(0xFF1A201A),
-    surfaceContainerHighest = Color(0xFF222922),
+    surfaceContainerLowest = Color(0xFF040604), surfaceContainerLow = Color(0xFF0C0F0B),
+    surfaceContainer = Color(0xFF12160F), surfaceContainerHigh = Color(0xFF181D16),
+    surfaceContainerHighest = Color(0xFF20261F),
     outline = Color(0xFF7D8776), outlineVariant = Color(0xFF30382D),
     error = Color(0xFFFF6B6B)
 )
@@ -54,13 +62,21 @@ private val Light = lightColorScheme(
 )
 
 private val AppTypography = Typography(
-    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold),
+    headlineLarge = TextStyle(fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp),
+    headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp),
     titleLarge = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold),
-    titleMedium = TextStyle(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
+    titleMedium = TextStyle(fontSize = 17.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold),
     bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 22.sp),
     bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp),
     bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 16.sp),
     labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
+)
+
+private val AppShapes = Shapes(
+    small = RoundedCornerShape(10.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp)
 )
 
 @Composable
@@ -82,5 +98,5 @@ fun EnjiwsTheme(content: @Composable () -> Unit) {
             c.isAppearanceLightNavigationBars = !dark
         }
     }
-    MaterialTheme(colorScheme = scheme, typography = AppTypography, content = content)
+    MaterialTheme(colorScheme = scheme, typography = AppTypography, shapes = AppShapes, content = content)
 }

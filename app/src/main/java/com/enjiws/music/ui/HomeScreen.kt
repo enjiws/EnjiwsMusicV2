@@ -1,5 +1,6 @@
 package com.enjiws.music.ui
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,13 +29,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.enjiws.music.data.LocalLibrary
 import com.enjiws.music.data.Store
 import com.enjiws.music.playback.PlayerHub
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -54,12 +61,18 @@ fun HomeScreen(
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
         item {
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(greeting, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.weight(1f))
+            val dateLine = remember { SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id", "ID")).format(Date()) }
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(greeting, style = MaterialTheme.typography.headlineLarge)
+                    Text(dateLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, "Pengaturan") }
             }
             Surface(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).clickable(onClick = onOpenSearch),
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(28.dp))
+                    .clickable(onClick = onOpenSearch),
                 shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh
             ) {
                 Row(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -83,7 +96,7 @@ fun HomeScreen(
         }
 
         if (history.isNotEmpty()) {
-            item { SectionTitle("Terakhir diputar") { TextButton(onClick = onOpenHistory) { Text("Semua") } } }
+            item { SectionTitle("Terakhir diputar") { TextButton(onClick = onOpenHistory) { Text("Semua", fontWeight = FontWeight.SemiBold, fontSize = 13.sp) } } }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     val list = history.take(15).map { it.track }
@@ -95,7 +108,7 @@ fun HomeScreen(
         }
 
         if (favorites.isNotEmpty()) {
-            item { SectionTitle("Favorit") { TextButton(onClick = { onOpenPlaylist(Store.FAV_ID) }) { Text("Semua") } } }
+            item { SectionTitle("Favorit") { TextButton(onClick = { onOpenPlaylist(Store.FAV_ID) }) { Text("Semua", fontWeight = FontWeight.SemiBold, fontSize = 13.sp) } } }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     val list = favorites.take(20)

@@ -21,6 +21,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
@@ -92,6 +93,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -163,7 +165,7 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
     val fav = Store.isFavorite(track)
     val fxOn = AddonHub.all.any { it.enabled } || Prefs.eqEnabled
 
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, PlayerDark)))) {
+    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, lerp(bg, PlayerDark, 0.55f), PlayerDark)))) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
             // Header: pegangan + asal lagu. Tarik ke bawah atau ketuk untuk menutup.
             Column(
@@ -183,8 +185,8 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                 Box(Modifier.width(40.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(white.copy(0.5f)))
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    if (track.isPreview) "Pratinjau 30 detik" else "Diputar dari ${track.source.ifBlank { "—" }}",
-                    color = white.copy(0.75f), fontSize = 13.sp, maxLines = 1
+                    (if (track.isPreview) "Pratinjau 30 detik" else "Diputar dari ${track.source.ifBlank { "—" }}").uppercase(),
+                    color = white.copy(0.55f), fontSize = 11.sp, letterSpacing = 1.sp, maxLines = 1
                 )
             }
 
@@ -198,8 +200,9 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                             val scale by animateFloatAsState(if (s.isPlaying) 1f else 0.9f, tween(400), label = "scale")
                             val side = minOf(maxWidth, maxHeight)
                             CoverBox(
-                                track.cover, Modifier.size(side).graphicsLayer { scaleX = scale; scaleY = scale },
-                                radius = 12.dp, iconSize = side * 0.3f
+                                track.cover,
+                                Modifier.size(side).shadow(24.dp, RoundedCornerShape(20.dp), spotColor = bg).graphicsLayer { scaleX = scale; scaleY = scale },
+                                radius = 20.dp, iconSize = side * 0.3f
                             )
                         }
                     }
@@ -209,10 +212,10 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
             // Judul + tombol bulat
             Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(track.title, color = white, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(track.artist, color = white.copy(0.6f), fontSize = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(track.title, color = white, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(track.artist, color = white.copy(0.65f), fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                CircleButton(if (fav) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit") { Store.toggleFavorite(track) }
+                CircleButton(if (fav) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit", { Store.toggleFavorite(track) }, tint = if (fav) Lime else Color.White)
                 Spacer(Modifier.width(8.dp))
                 CircleButton(Icons.Rounded.MoreHoriz, "Menu") { openMenu(track, null) }
             }
@@ -228,15 +231,19 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                     Icon(Icons.Rounded.Shuffle, "Acak", tint = if (s.shuffle) MaterialTheme.colorScheme.primary else white.copy(0.7f))
                 }
                 IconButton(onClick = { PlayerHub.previous() }, modifier = Modifier.size(64.dp)) {
-                    Icon(Icons.Rounded.SkipPrevious, "Sebelumnya", tint = white, modifier = Modifier.size(48.dp))
+                    Icon(Icons.Rounded.SkipPrevious, "Sebelumnya", tint = white, modifier = Modifier.size(40.dp))
                 }
-                Box(Modifier.size(80.dp).clip(CircleShape).clickable { PlayerHub.togglePlay() }, contentAlignment = Alignment.Center) {
-                    if (s.buffering) CircularProgressIndicator(Modifier.size(40.dp), color = white, strokeWidth = 3.dp)
+                Box(
+                    Modifier.size(76.dp).shadow(16.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
+                        .clip(CircleShape).background(AccentGradient).clickable { PlayerHub.togglePlay() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (s.buffering) CircularProgressIndicator(Modifier.size(36.dp), color = Color(0xFF0B1500), strokeWidth = 3.dp)
                     else Icon(if (s.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (s.isPlaying) "Jeda" else "Putar",
-                        tint = white, modifier = Modifier.size(64.dp))
+                        tint = Color(0xFF0B1500), modifier = Modifier.size(36.dp))
                 }
                 IconButton(onClick = { PlayerHub.next() }, modifier = Modifier.size(64.dp)) {
-                    Icon(Icons.Rounded.SkipNext, "Berikutnya", tint = white, modifier = Modifier.size(48.dp))
+                    Icon(Icons.Rounded.SkipNext, "Berikutnya", tint = white, modifier = Modifier.size(40.dp))
                 }
                 IconButton(onClick = { PlayerHub.cycleRepeat() }) {
                     Icon(
@@ -253,7 +260,7 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                 IconButton(onClick = { showLyrics = !showLyrics }) {
                     Icon(Icons.Rounded.FormatQuote, "Lirik", tint = if (showLyrics) MaterialTheme.colorScheme.primary else white)
                 }
-                Row(Modifier.clip(RoundedCornerShape(50)).background(white.copy(0.15f)), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.clip(RoundedCornerShape(50)).background(white.copy(0.12f)).border(1.dp, white.copy(0.08f), RoundedCornerShape(50)), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { sheet = PlayerSheet.Speed }) {
                         Text(if (s.speed == 1f) "1x" else "${s.speed}x", color = if (s.speed == 1f) white else MaterialTheme.colorScheme.primary)
                     }
@@ -280,11 +287,12 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
 }
 
 @Composable
-private fun CircleButton(icon: ImageVector, desc: String, onClick: () -> Unit) {
+private fun CircleButton(icon: ImageVector, desc: String, onClick: () -> Unit, tint: Color = Color.White) {
     Box(
-        Modifier.size(36.dp).clip(CircleShape).background(Color.White.copy(0.2f)).clickable(onClick = onClick),
+        Modifier.size(38.dp).clip(CircleShape).background(Color.White.copy(0.14f))
+            .border(1.dp, Color.White.copy(0.1f), CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center
-    ) { Icon(icon, desc, tint = Color.White, modifier = Modifier.size(20.dp)) }
+    ) { Icon(icon, desc, tint = tint, modifier = Modifier.size(20.dp)) }
 }
 
 /** Satu baris lirik yang sedang dinyanyikan; ketuk untuk membuka lirik penuh. */
@@ -301,7 +309,7 @@ private fun LyricPreview(lyrics: Lyrics?, onClick: () -> Unit) {
     }
     if (text.isBlank()) { Spacer(Modifier.height(14.dp)); return }
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        Text(text, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false))
         Text("  ›", color = Color.White.copy(0.6f), fontSize = 20.sp)
     }
@@ -342,7 +350,7 @@ private fun SeekBar(durationMs: Long, center: @Composable () -> Unit) {
             value = if (dragging) dragValue else (pos.toFloat() / dur).coerceIn(0f, 1f),
             onValueChange = { dragging = true; dragValue = it },
             onValueChangeFinished = { PlayerHub.seekTo((dragValue * dur).toLong()); dragging = false },
-            colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White, inactiveTrackColor = Color.White.copy(0.25f))
+            colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = MaterialTheme.colorScheme.primary, inactiveTrackColor = Color.White.copy(0.25f))
         )
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(formatTime(shown), color = Color.White.copy(0.75f), fontSize = 12.sp)
