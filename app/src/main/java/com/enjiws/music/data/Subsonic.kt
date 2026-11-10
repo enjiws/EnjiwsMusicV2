@@ -95,6 +95,37 @@ object Subsonic {
         return Resolved(url("stream", "id=${enc(id)}&format=raw"), suffix, kbps, label, info)
     }
 
+    /** Pilihan unduhan: file asli apa adanya (Lossless / Hi-Res bila memang begitu) + MP3 hasil konversi server. */
+    fun downloadOptions(id: String): List<DownloadOption> {
+        val song = runCatching { call("getSong", "id=${enc(id)}").optJSONObject("song") }.getOrNull()
+        val suffix = song?.optString("suffix").orEmpty().ifBlank { "audio" }
+        val kbps = song?.optInt("bitRate") ?: 0
+        val bits = song?.optInt("bitDepth") ?: 0
+        val hz = song?.optInt("samplingRate") ?: 0
+        val lossless = suffix.lowercase() in setOf("flac", "alac", "wav", "wave", "aiff", "aif", "ape", "wv", "dsf", "dff")
+        val info = AudioInfo(format = suffix.uppercase(), sampleRateHz = hz, bitDepth = bits, kbps = kbps, lossless = lossless)
+        val tier = when {
+            !lossless -> "Asli"
+            hz >= 176_400 -> "Hi-Res Max"
+            bits > 16 || hz > 48_000 -> "Hi-Res"
+            else -> "Lossless"
+        }
+        val out = mutableListOf(
+            DownloadOption(
+                title = tier,
+                detail = info.detail + " · file asli tanpa konversi",
+                url = url("download", "id=${enc(id)}"),
+                ext = suffix,
+                tag = suffix.lowercase() + if (bits > 0 && hz > 0) "-$bits-${hz / 1000}k" else ""
+            )
+        )
+        if (lossless || kbps > 192) {
+            out += DownloadOption("Standar", "MP3 · 320 kbps · dikonversi server", url("stream", "id=${enc(id)}&format=mp3&maxBitRate=320"), "mp3", "mp3-320k")
+            out += DownloadOption("Hemat", "MP3 · 192 kbps · dikonversi server", url("stream", "id=${enc(id)}&format=mp3&maxBitRate=192"), "mp3", "mp3-192k")
+        }
+        return out
+    }
+
     /** Untuk tombol "Tes koneksi" di Pengaturan. */
     suspend fun test(): String = withContext(Dispatchers.IO) {
         if (!configured) return@withContext "Isi alamat, username, dan password dulu."

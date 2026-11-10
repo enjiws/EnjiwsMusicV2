@@ -18,6 +18,7 @@ object Prefs {
     var dynamicColor by mutableStateOf(false); private set
     var autoplay by mutableStateOf(true); private set
     var dataSaver by mutableStateOf(false); private set
+    var askDownloadQuality by mutableStateOf(true); private set
     var sources by mutableStateOf(setOf(Source.YouTube)); private set
     var eqEnabled by mutableStateOf(false); private set
     var eqLevels by mutableStateOf<List<Int>>(emptyList()); private set
@@ -40,6 +41,7 @@ object Prefs {
         dynamicColor = sp.getBoolean("dynamic", false)
         autoplay = sp.getBoolean("autoplay", true)
         dataSaver = sp.getBoolean("datasaver", false)
+        askDownloadQuality = sp.getBoolean("ask_dl_quality", true)
         eqEnabled = sp.getBoolean("eq_on", false)
         apiKey = sp.getString("api_key", "").orEmpty()
         serverUrl = sp.getString("srv_url", "").orEmpty()
@@ -55,6 +57,7 @@ object Prefs {
     fun updateAccent(v: Int) { accent = v.coerceIn(0, 4); sp.edit().putInt("accent", accent).apply() }
     fun updateDynamicColor(v: Boolean) { dynamicColor = v; sp.edit().putBoolean("dynamic", v).apply() }
     fun updateAutoplay(v: Boolean) { autoplay = v; sp.edit().putBoolean("autoplay", v).apply() }
+    fun updateAskDownloadQuality(v: Boolean) { askDownloadQuality = v; sp.edit().putBoolean("ask_dl_quality", v).apply() }
     fun updateDataSaver(v: Boolean) { dataSaver = v; sp.edit().putBoolean("datasaver", v).apply() }
     fun updateEqEnabled(v: Boolean) { eqEnabled = v; sp.edit().putBoolean("eq_on", v).apply() }
     fun updateEqLevels(v: List<Int>) { eqLevels = v; sp.edit().putString("eq_levels", v.joinToString(",")).apply() }

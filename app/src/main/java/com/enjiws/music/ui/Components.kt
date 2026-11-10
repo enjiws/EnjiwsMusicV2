@@ -78,6 +78,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.enjiws.music.data.Downloads
+import androidx.compose.material3.CircularProgressIndicator
+import com.enjiws.music.data.Prefs
+import com.enjiws.music.data.DownloadOptions
+import com.enjiws.music.data.DownloadOption
 import com.enjiws.music.data.Store
 import com.enjiws.music.data.Track
 import com.enjiws.music.playback.PlayerHub
@@ -274,6 +278,7 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var choosingPlaylist by remember(tgt) { mutableStateOf(false) }
+    var choosingQuality by remember(tgt) { mutableStateOf(false) }
     var newName by remember(tgt) { mutableStateOf("") }
     val track = tgt.track
     val close = { target = null }
@@ -289,7 +294,9 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            if (!choosingPlaylist) {
+            if (choosingQuality) {
+                QualityChooser(track) { opt -> Downloads.start(context, track, opt); close() }
+            } else if (!choosingPlaylist) {
                 val fav = Store.isFavorite(track)
                 val playable = track.canStream
                 if (playable) {
@@ -301,7 +308,9 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                 }
                 MenuItem(Icons.AutoMirrored.Rounded.PlaylistAdd, "Tambah ke playlist…") { choosingPlaylist = true }
                 if (!track.isLocal && playable && !track.isPreview) {
-                    MenuItem(Icons.Rounded.Download, "Unduh") { Downloads.start(context, track); close() }
+                    MenuItem(Icons.Rounded.Download, "Unduh") {
+                        if (Prefs.askDownloadQuality) choosingQuality = true else { Downloads.start(context, track); close() }
+                    }
                 }
                 MenuItem(Icons.Rounded.Share, "Bagikan") {
                     val link = track.youtubeUrl.ifBlank { track.soundcloudUrl.ifBlank { track.storeUrl } }
@@ -344,6 +353,35 @@ fun TrackMenuHost(content: @Composable () -> Unit) {
                         }
                     }) { Icon(Icons.Rounded.Add, "Buat") }
                 }
+            }
+        }
+    }
+}
+
+/** Daftar kualitas unduhan yang benar-benar tersedia untuk lagu ini. */
+@Composable
+private fun QualityChooser(track: Track, onPick: (DownloadOption) -> Unit) {
+    val options by produceState<List<DownloadOption>?>(null, track.id) {
+        value = runCatching { DownloadOptions.forTrack(track) }.getOrElse { emptyList() }
+    }
+    Text("Kualitas unduhan", Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.titleMedium)
+    val list = options
+    when {
+        list == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        list.isEmpty() -> Text("Tidak ada pilihan kualitas untuk lagu ini.", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        else -> Column {
+            list.forEach { o ->
+                Column(Modifier.fillMaxWidth().clickable { onPick(o) }.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                    Text(o.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                    Text(o.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (track.subId.isBlank()) {
+                Text(
+                    "Audio dari YouTube/SoundCloud selalu lossy. Lossless dan Hi-Res hanya tersedia untuk lagu dari servermu.",
+                    Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

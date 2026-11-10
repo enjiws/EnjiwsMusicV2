@@ -13,7 +13,7 @@ object Downloads {
         name.replace(Regex("[\\\\/:*?\"<>|]"), "-").trim().ifBlank { "track" }.take(100)
 
     /** Resolve stream lalu serahkan ke DownloadManager (jalan di background dengan notifikasi sistem). */
-    fun start(context: Context, track: Track) {
+    fun start(context: Context, track: Track, option: DownloadOption? = null) {
         val app = context.applicationContext
         if (track.isLocal) { UiBus.toast("Lagu ini sudah ada di perangkat"); return }
         if (track.isPreview) { UiBus.toast("Apple Music hanya menyediakan pratinjau 30 detik"); return }
@@ -21,10 +21,12 @@ object Downloads {
         UiBus.toast("Menyiapkan unduhan…")
         AppScope.launch {
             try {
-                val r = StreamResolver.resolve(track)
-                val file = sanitize("${track.artist} - ${track.title}") + "." + r.ext
+                // Tanpa pilihan -> otomatis kualitas terbaik yang tersedia.
+                val opt = option ?: DownloadOptions.forTrack(track).first()
+                val tag = if (opt.tag.isNotBlank()) " [${opt.tag}]" else ""
+                val file = sanitize("${track.artist} - ${track.title}") + tag + "." + opt.ext
                 val dm = app.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                val req = DownloadManager.Request(Uri.parse(r.url))
+                val req = DownloadManager.Request(Uri.parse(opt.url))
                     .setTitle(track.title)
                     .setDescription("ENJIWS Music")
                     .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
@@ -32,7 +34,7 @@ object Downloads {
                 @Suppress("DEPRECATION")
                 req.allowScanningByMediaScanner()
                 dm.enqueue(req)
-                UiBus.toast("Mengunduh “${track.title}” ke Musik/ENJIWS")
+                UiBus.toast("Mengunduh “${track.title}” (${opt.title}) ke Musik/ENJIWS")
             } catch (e: Exception) {
                 UiBus.toast("Gagal mengunduh: ${friendlyError(e)}")
             }

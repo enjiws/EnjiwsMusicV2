@@ -91,6 +91,7 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         Header("Pemutaran")
         SwitchRow("Radio otomatis", "Tambahkan lagu terkait saat antrean habis", Prefs.autoplay) { Prefs.updateAutoplay(it) }
         SwitchRow("Hemat data", "Pilih kualitas audio online yang lebih rendah", Prefs.dataSaver) { Prefs.updateDataSaver(it) }
+        SwitchRow("Tanya kualitas saat unduh", "Pilih kualitas setiap kali mengunduh. Kalau mati, otomatis kualitas terbaik.", Prefs.askDownloadQuality) { Prefs.updateAskDownloadQuality(it) }
         ActionRow("Equalizer", "Atur frekuensi suara") { eq = true }
 
         Header("Audio engine")
