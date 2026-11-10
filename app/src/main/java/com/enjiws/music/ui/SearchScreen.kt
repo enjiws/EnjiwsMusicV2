@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,10 +57,12 @@ import com.enjiws.music.data.Source
 import com.enjiws.music.data.Store
 import com.enjiws.music.data.Subsonic
 import com.enjiws.music.data.Track
+import com.enjiws.music.data.YtSearchPager
 import com.enjiws.music.playback.PlayerHub
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 /** State pencarian di level aplikasi: teks & hasil tidak hilang saat pindah tab atau membuka pemutar. */
 object SearchState {
@@ -68,6 +73,29 @@ object SearchState {
     private var job: Job? = null
 
     private var runId = 0
+    private var pager: YtSearchPager? = null
+    var hasMore by mutableStateOf(false); private set
+    var loadingMore by mutableStateOf(false); private set
+
+    /** Dipanggil saat pengguna mendekati ujung daftar: ambil halaman berikutnya dari YouTube. */
+    fun loadMore() {
+        val p = pager ?: return
+        if (loadingMore || loading || !hasMore) return
+        val id = runId
+        loadingMore = true
+        AppScope.launch {
+            try {
+                val more = runCatching { withTimeout(12_000L) { p.more() } }.getOrDefault(emptyList())
+                if (id == runId) {
+                    val known = results.map { it.key }.toSet()
+                    results = results + more.filter { it.key !in known }
+                    hasMore = p.hasMore
+                }
+            } finally {
+                loadingMore = false
+            }
+        }
+    }
 
     fun run(q: String) {
         val text = q.trim()
@@ -79,6 +107,10 @@ object SearchState {
         loading = true
         message = "Mencari…"
         results = emptyList()
+        hasMore = false
+        loadingMore = false
+        val yt = YtSearchPager(text)
+        pager = yt
         val sources = if (Subsonic.configured) setOf(Source.YouTube, Source.Server) else setOf(Source.YouTube)
         job = AppScope.launch {
             val collected = mutableListOf<Track>()
@@ -87,11 +119,12 @@ object SearchState {
             // Tiap sumber jalan sendiri; hasilnya langsung tampil begitu selesai.
             sources.map { s ->
                 launch {
-                    runCatching { Catalog.searchSource(s, text) }
+                    runCatching { withTimeout(12_000L) { if (s == Source.YouTube) yt.first() else Catalog.searchSource(s, text) } }
                         .onSuccess { list ->
                             collected += list
                             counts += "${s.label} ${list.size}"
                             results = Catalog.sortResults(collected.distinctBy { it.key }, text)
+                            if (s == Source.YouTube) hasMore = yt.hasMore
                         }
                         .onFailure { failed += s.label }
                 }
@@ -168,8 +201,12 @@ fun SearchScreen() {
                 }
                 SearchState.loading && SearchState.results.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 SearchState.results.isNotEmpty() -> {
-                    val playable = SearchState.results.filter { it.canStream }
-                    LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+                    val listState = rememberLazyListState()
+                    val lastVisible by remember { derivedStateOf { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 } }
+                    LaunchedEffect(lastVisible, SearchState.results.size) {
+                        if (SearchState.results.isNotEmpty() && lastVisible >= SearchState.results.size - 2) SearchState.loadMore()
+                    }
+                    LazyColumn(state = listState, contentPadding = PaddingValues(bottom = 16.dp)) {
                         item {
                             if (SearchState.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                             Text(SearchState.message, Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -182,6 +219,13 @@ fun SearchScreen() {
                                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(t.storeUrl)))
                                 }
                             })
+                        }
+                        if (SearchState.loadingMore) {
+                            item {
+                                Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                                }
+                            }
                         }
                     }
                 }
