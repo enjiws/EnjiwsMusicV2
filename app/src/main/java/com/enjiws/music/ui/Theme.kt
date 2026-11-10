@@ -51,6 +51,9 @@ fun accentGradient(): Brush {
     return Brush.linearGradient(listOf(a.color, a.glow))
 }
 
+/** Alias lama (dipakai file Premium.kt): gradien aksen aktif. */
+val AccentGradient: Brush get() = accentGradient()
+
 /** Font editorial aplikasi: Poppins (Regular–ExtraBold). */
 val Poppins = FontFamily(Font(R.font.poppins))
 
