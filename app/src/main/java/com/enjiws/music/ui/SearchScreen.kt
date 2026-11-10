@@ -140,6 +140,7 @@ fun SearchScreen() {
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { submit(query) }),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+            colors = premiumFieldColors(),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).onFocusChanged { focused = it.isFocused }
         )
         Box(Modifier.fillMaxSize()) {

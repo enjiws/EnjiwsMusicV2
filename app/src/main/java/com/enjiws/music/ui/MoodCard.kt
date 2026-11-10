@@ -1,6 +1,7 @@
 package com.enjiws.music.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,12 +85,12 @@ fun MoodCard() {
 
     Surface(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp)),
+            .border(1.dp, Brush.linearGradient(listOf(Lime.copy(alpha = 0.55f), Emerald.copy(alpha = 0.22f), Color.Transparent)), RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f)
     ) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(32.dp).clip(CircleShape).background(accentGradient()), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(32.dp).clip(CircleShape).background(AccentGradient), contentAlignment = Alignment.Center) {
                     Icon(Icons.Rounded.AutoAwesome, null, tint = Color(0xFF0B1500), modifier = Modifier.size(16.dp))
                 }
                 Spacer(Modifier.width(8.dp))

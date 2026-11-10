@@ -41,7 +41,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -340,10 +339,6 @@ object AudioFx {
     private var eq: Equalizer? = null
     val ready = MutableStateFlow(false)
 
-    /** Audio session id ExoPlayer (untuk Visualizer). 0 bila belum terpasang. */
-    private val _sessionId = MutableStateFlow(0)
-    val sessionId: StateFlow<Int> = _sessionId
-
     val bands: Int get() = eq?.numberOfBands?.toInt() ?: 0
     val minLevel: Int get() = eq?.bandLevelRange?.getOrNull(0)?.toInt() ?: -1500
     val maxLevel: Int get() = eq?.bandLevelRange?.getOrNull(1)?.toInt() ?: 1500
@@ -351,7 +346,6 @@ object AudioFx {
     fun attach(sessionId: Int) {
         release()
         if (sessionId == C.AUDIO_SESSION_ID_UNSET || sessionId == 0) return
-        _sessionId.value = sessionId
         AddonHub.attach(sessionId)
         runCatching {
             val e = Equalizer(0, sessionId)
@@ -366,7 +360,6 @@ object AudioFx {
     }
 
     fun release() {
-        _sessionId.value = 0
         AddonHub.releaseAll()
         runCatching { eq?.release() }
         eq = null

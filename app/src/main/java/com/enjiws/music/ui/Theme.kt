@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
@@ -35,24 +34,20 @@ val LimeYellow = Color(0xFFFFEA00)
 val Emerald = Color(0xFF00C896)
 val EmeraldDeep = Color(0xFF0E3B2E)
 
-/** Pilihan warna aksen (dipilih di Pengaturan). */
-data class Accent(val name: String, val color: Color, val onColor: Color, val container: Color, val glow: Color)
-val Accents = listOf(
-    Accent("Lime", Lime, Color(0xFF0B1500), Color(0xFF263D00), LimeYellow),
-    Accent("Emerald", Emerald, Color(0xFF00211A), Color(0xFF0E3B2E), Color(0xFF7CFFB2)),
-    Accent("Emas", Color(0xFFFFC400), Color(0xFF241A00), Color(0xFF4A3600), Color(0xFFFFE082)),
-    Accent("Pink", Color(0xFFFF4D8D), Color(0xFF2B0014), Color(0xFF571033), Color(0xFFFF8FBF)),
-    Accent("Langit", Color(0xFF38BDF8), Color(0xFF001E2E), Color(0xFF0B3549), Color(0xFFA5E3FF))
-)
-
-/** Gradien aksen aktif (aksen → glow) untuk tombol putar utama. */
-fun accentGradient(): Brush {
-    val a = Accents[Prefs.accent.coerceIn(Accents.indices)]
-    return Brush.linearGradient(listOf(a.color, a.glow))
-}
+/** Gradien aksen khas EW (lime → kuning) untuk tombol putar utama. */
+val AccentGradient = Brush.linearGradient(listOf(Lime, LimeYellow))
 
 /** Font editorial aplikasi: Poppins (Regular–ExtraBold). */
-val Poppins = FontFamily(Font(R.font.poppins))
+val Poppins = FontFamily(
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_semibold, FontWeight.SemiBold),
+    Font(R.font.poppins_bold, FontWeight.Bold),
+    Font(R.font.poppins_extrabold, FontWeight.ExtraBold)
+)
+
+/** Emas khas lencana Hi-Res. */
+val HiResGold = Color(0xFFFFD36B)
 
 private val Dark = darkColorScheme(
     primary = Lime, onPrimary = Color(0xFF0B1500),
@@ -107,19 +102,11 @@ private val AppShapes = Shapes(
 fun EnjiwsTheme(content: @Composable () -> Unit) {
     val dark = when (Prefs.themeMode) { 1 -> true; 2 -> false; else -> isSystemInDarkTheme() }
     val context = LocalContext.current
-    val accent = Accents[Prefs.accent.coerceIn(Accents.indices)]
     val scheme = when {
         Prefs.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
             if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        dark -> Dark.copy(
-            primary = accent.color, onPrimary = accent.onColor,
-            primaryContainer = accent.container, onPrimaryContainer = accent.color
-        )
-        else -> Light.copy(
-            primary = lerp(accent.color, Color.Black, 0.45f),
-            primaryContainer = lerp(accent.color, Color.White, 0.75f),
-            onPrimaryContainer = lerp(accent.color, Color.Black, 0.55f)
-        )
+        dark -> Dark
+        else -> Light
     }
     val view = LocalView.current
     if (!view.isInEditMode) {

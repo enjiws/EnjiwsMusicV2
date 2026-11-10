@@ -1,8 +1,12 @@
 package com.enjiws.music.ui
 
 import android.graphics.drawable.BitmapDrawable
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.alpha
+import android.os.Build
 import kotlin.math.roundToInt
-import kotlin.math.sqrt
 import kotlinx.coroutines.delay
 import com.enjiws.music.playback.AddonHub
 import com.enjiws.music.data.StreamResolver
@@ -17,12 +21,10 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.animation.Crossfade
 import android.media.AudioManager
-import android.media.audiofx.Visualizer
 import android.content.Context
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -85,7 +87,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -98,9 +99,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -174,6 +172,14 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
     val fxOn = AddonHub.all.any { it.enabled } || Prefs.eqEnabled
 
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, lerp(bg, PlayerDark, 0.55f), PlayerDark)))) {
+        // Latar: cover yang diburamkan (Android 12+), lalu digelapkan supaya teks tetap terbaca.
+        if (Build.VERSION.SDK_INT >= 31 && track.cover != null) {
+            AsyncImage(
+                model = track.cover, contentDescription = null, contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().blur(80.dp).alpha(0.50f)
+            )
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.25f), PlayerDark.copy(alpha = 0.90f)))))
+        }
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
             // Header: pegangan + asal lagu. Tarik ke bawah atau ketuk untuk menutup.
             Column(
@@ -238,8 +244,6 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
 
             LyricPreview(lyrics) { showLyrics = true }
 
-            VisualizerBars(Modifier.fillMaxWidth().padding(top = 10.dp))
-
             // Seek bar + badge kualitas/addon di tengah
             SeekBar(s.durationMs) { QualityBadge(track) { sheet = PlayerSheet.Path } }
 
@@ -253,7 +257,7 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                 }
                 Box(
                     Modifier.size(76.dp).shadow(16.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
-                        .clip(CircleShape).background(accentGradient()).clickable { PlayerHub.togglePlay() },
+                        .clip(CircleShape).background(AccentGradient).clickable { PlayerHub.togglePlay() },
                     contentAlignment = Alignment.Center
                 ) {
                     if (s.buffering) CircularProgressIndicator(Modifier.size(36.dp), color = Color(0xFF0B1500), strokeWidth = 3.dp)
@@ -345,7 +349,7 @@ private fun QualityBadge(track: Track, onClick: () -> Unit) {
     }
     val fx = AddonHub.all.filter { it.enabled }.map { it.title.substringBefore(' ') } +
         (if (Prefs.eqEnabled) listOf("EQ") else emptyList())
-    val tint = if (info?.hiRes == true) MaterialTheme.colorScheme.primary else Color.White.copy(0.8f)
+    val tint = if (info?.hiRes == true) HiResGold else Color.White.copy(0.8f)
     Row(
         Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -547,76 +551,6 @@ private fun EffectsSheet(onEq: () -> Unit, onDismiss: () -> Unit) {
             Text("Efek & addon", Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium)
             SheetRow("Equalizer" + if (Prefs.eqEnabled) " (aktif)" else "") { onEq() }
             AddonHub.all.forEach { AddonCard(it) }
-        }
-    }
-}
-
-// ------------------------------------------------------- visualizer
-
-private const val VBARS = 28
-
-/** Ubah data FFT (pasangan real/imaginer per bin) menjadi tinggi 28 batang, skala semi-log. */
-private fun fftToBars(fft: ByteArray): FloatArray {
-    val out = FloatArray(VBARS)
-    val bins = (fft.size / 2).coerceAtLeast(1)
-    for (i in 0 until VBARS) {
-        val p0 = i.toFloat() / VBARS
-        val p1 = (i + 1).toFloat() / VBARS
-        val start = (p0 * p0 * bins).toInt().coerceIn(0, bins - 1)
-        val end = (p1 * p1 * bins).toInt().coerceIn(start + 1, bins)
-        var mag = 0f
-        for (b in start until end) {
-            val re = fft[2 * b].toInt()
-            val im = fft[2 * b + 1].toInt()
-            val m = sqrt((re * re + im * im).toFloat())
-            if (m > mag) mag = m
-        }
-        out[i] = (mag / 90f).coerceIn(0.04f, 1f)
-    }
-    return out
-}
-
-/** Visualizer audio (Audiophile Experience): batang frekuensi dari FFT sesi audio pemutar. */
-@Composable
-private fun VisualizerBars(modifier: Modifier = Modifier) {
-    val s by PlayerHub.state.collectAsState()
-    val sessionId by AudioFx.sessionId.collectAsState()
-    val shown = remember { FloatArray(VBARS) { 0.04f } }
-    var magnitudes by remember { mutableStateOf(FloatArray(VBARS) { 0.04f }) }
-    val playingFactor by animateFloatAsState(if (s.isPlaying) 1f else 0.12f, tween(400), label = "vplay")
-    val barBrush = accentGradient()
-    DisposableEffect(sessionId) {
-        var viz: Visualizer? = null
-        if (sessionId != 0) {
-            viz = runCatching {
-                Visualizer(sessionId).apply {
-                    captureSize = Visualizer.getCaptureSizeRange()[1]
-                    setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
-                        override fun onWaveFormDataCapture(viz: Visualizer, waveform: ByteArray, samplingRate: Int) = Unit
-                        override fun onFftDataCapture(viz: Visualizer, fft: ByteArray, samplingRate: Int) {
-                            val fresh = fftToBars(fft)
-                            for (i in fresh.indices) {
-                                shown[i] = maxOf(fresh[i], shown[i] * 0.82f)
-                            }
-                            magnitudes = shown.copyOf()
-                        }
-                    }, Visualizer.getMaxCaptureRate() / 2, false, true)
-                    enabled = true
-                }
-            }.getOrNull()
-        }
-        onDispose { runCatching { viz?.enabled = false; viz?.release() } }
-    }
-    Canvas(modifier.height(40.dp)) {
-        val barW = size.width / VBARS
-        for (i in 0 until VBARS) {
-            val h = (magnitudes[i] * playingFactor * size.height).coerceAtLeast(2.dp.toPx())
-            drawRoundRect(
-                brush = barBrush,
-                topLeft = Offset(i * barW + barW * 0.2f, size.height - h),
-                size = Size(barW * 0.6f, h),
-                cornerRadius = CornerRadius(barW * 0.3f, barW * 0.3f)
-            )
         }
     }
 }

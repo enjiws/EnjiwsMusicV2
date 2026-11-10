@@ -126,6 +126,7 @@ fun LibraryScreen(onOpenCollection: (kind: String, name: String) -> Unit) {
             leadingIcon = { Icon(Icons.Rounded.Search, null) },
             trailingIcon = { if (filter.isNotEmpty()) IconButton(onClick = { filter = "" }) { Icon(Icons.Rounded.Clear, "Hapus") } },
             shape = RoundedCornerShape(28.dp),
+            colors = premiumFieldColors(),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
         )
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
