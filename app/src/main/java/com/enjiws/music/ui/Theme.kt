@@ -55,7 +55,16 @@ fun accentGradient(): Brush {
 val AccentGradient: Brush get() = accentGradient()
 
 /** Font editorial aplikasi: Poppins (Regular–ExtraBold). */
-val Poppins = FontFamily(Font(R.font.poppins))
+val Poppins = FontFamily(
+    Font(R.font.poppins_regular, FontWeight.Normal),
+    Font(R.font.poppins_medium, FontWeight.Medium),
+    Font(R.font.poppins_semibold, FontWeight.SemiBold),
+    Font(R.font.poppins_bold, FontWeight.Bold),
+    Font(R.font.poppins_extrabold, FontWeight.ExtraBold)
+)
+
+/** Emas khas lencana Hi-Res. */
+val HiResGold = Color(0xFFFFD36B)
 
 private val Dark = darkColorScheme(
     primary = Lime, onPrimary = Color(0xFF0B1500),

@@ -32,10 +32,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.enjiws.music.data.Prefs
 
-/** Pantulan tepi kaca: terang di sudut kiri-atas, memudar, lalu sentuhan emerald. */
+/** Aksen yang sedang dipilih di Pengaturan. */
+fun currentAccent(): Accent = Accents[Prefs.accent.coerceIn(Accents.indices)]
+
+/** Pantulan tepi kaca: terang di sudut kiri-atas, memudar, lalu sentuhan warna aksen. */
 val GlassBorder: Brush
-    get() = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.20f), Color.White.copy(alpha = 0.04f), Emerald.copy(alpha = 0.24f)))
+    get() = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.20f), Color.White.copy(alpha = 0.04f), currentAccent().color.copy(alpha = 0.24f)))
 
 /** Animasi tekan: mengecil sedikit saat disentuh lalu memantul kembali. */
 fun Modifier.pressable(onClick: () -> Unit): Modifier = composed {
@@ -51,19 +55,20 @@ fun Modifier.pressable(onClick: () -> Unit): Modifier = composed {
         .clickable(interactionSource = source, indication = null, onClick = onClick)
 }
 
-/** Latar "aurora": cahaya emerald dari kiri-atas dan semburat lime di kanan, di atas hitam pekat. */
+/** Latar "aurora": cahaya aksen dari kiri-atas dan semburat glow di kanan, di atas hitam pekat. */
 fun Modifier.aurora(): Modifier = drawBehind {
     val w = size.width
     val h = size.height
     drawRect(Color(0xFF050807))
+    val accent = currentAccent()
     val c1 = Offset(w * 0.05f, h * 0.02f)
     drawCircle(
-        brush = Brush.radialGradient(listOf(Emerald.copy(alpha = 0.26f), Color.Transparent), center = c1, radius = w),
+        brush = Brush.radialGradient(listOf(accent.color.copy(alpha = 0.24f), Color.Transparent), center = c1, radius = w),
         radius = w, center = c1
     )
     val c2 = Offset(w, h * 0.38f)
     drawCircle(
-        brush = Brush.radialGradient(listOf(Lime.copy(alpha = 0.10f), Color.Transparent), center = c2, radius = w * 0.8f),
+        brush = Brush.radialGradient(listOf(accent.glow.copy(alpha = 0.10f), Color.Transparent), center = c2, radius = w * 0.8f),
         radius = w * 0.8f, center = c2
     )
 }
@@ -97,7 +102,7 @@ fun GlassIconButton(icon: ImageVector, desc: String, onClick: () -> Unit) {
 fun GradientCircleButton(onClick: () -> Unit, size: Dp, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
         modifier.size(size).pressable(onClick)
-            .shadow(14.dp, CircleShape, spotColor = Lime.copy(alpha = 0.55f))
+            .shadow(14.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
             .clip(CircleShape).background(AccentGradient),
         contentAlignment = Alignment.Center
     ) { content() }
@@ -106,9 +111,9 @@ fun GradientCircleButton(onClick: () -> Unit, size: Dp, modifier: Modifier = Mod
 /** Warna kolom teks yang seragam dengan tema kaca. */
 @Composable
 fun premiumFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = Lime.copy(alpha = 0.70f),
+    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.70f),
     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.60f),
     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.60f),
-    cursorColor = Lime
+    cursorColor = MaterialTheme.colorScheme.primary
 )

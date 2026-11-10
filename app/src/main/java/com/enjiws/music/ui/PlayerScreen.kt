@@ -1,6 +1,16 @@
 package com.enjiws.music.ui
 
 import android.graphics.drawable.BitmapDrawable
+import coil.compose.AsyncImage
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.alpha
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.os.Build
+import android.content.pm.PackageManager
+import android.Manifest
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlinx.coroutines.delay
@@ -174,6 +184,14 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
     val fxOn = AddonHub.all.any { it.enabled } || Prefs.eqEnabled
 
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(bg, lerp(bg, PlayerDark, 0.55f), PlayerDark)))) {
+        // Latar: cover yang diburamkan (Android 12+), lalu digelapkan supaya teks tetap terbaca.
+        if (Build.VERSION.SDK_INT >= 31 && track.cover != null) {
+            AsyncImage(
+                model = track.cover, contentDescription = null, contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().blur(80.dp).alpha(0.50f)
+            )
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.25f), PlayerDark.copy(alpha = 0.90f)))))
+        }
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp)) {
             // Header: pegangan + asal lagu. Tarik ke bawah atau ketuk untuk menutup.
             Column(
@@ -345,7 +363,7 @@ private fun QualityBadge(track: Track, onClick: () -> Unit) {
     }
     val fx = AddonHub.all.filter { it.enabled }.map { it.title.substringBefore(' ') } +
         (if (Prefs.eqEnabled) listOf("EQ") else emptyList())
-    val tint = if (info?.hiRes == true) MaterialTheme.colorScheme.primary else Color.White.copy(0.8f)
+    val tint = if (info?.hiRes == true) HiResGold else Color.White.copy(0.8f)
     Row(
         Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -585,9 +603,14 @@ private fun VisualizerBars(modifier: Modifier = Modifier) {
     var magnitudes by remember { mutableStateOf(FloatArray(VBARS) { 0.04f }) }
     val playingFactor by animateFloatAsState(if (s.isPlaying) 1f else 0.12f, tween(400), label = "vplay")
     val barBrush = accentGradient()
-    DisposableEffect(sessionId) {
+    val context = LocalContext.current
+    var granted by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
+    }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
+    DisposableEffect(sessionId, granted) {
         var viz: Visualizer? = null
-        if (sessionId != 0) {
+        if (sessionId != 0 && granted) {
             viz = runCatching {
                 Visualizer(sessionId).apply {
                     captureSize = Visualizer.getCaptureSizeRange()[1]
@@ -606,6 +629,15 @@ private fun VisualizerBars(modifier: Modifier = Modifier) {
             }.getOrNull()
         }
         onDispose { runCatching { viz?.enabled = false; viz?.release() } }
+    }
+    if (!granted) {
+        Box(
+            modifier.height(40.dp).clip(RoundedCornerShape(12.dp)).clickable { launcher.launch(Manifest.permission.RECORD_AUDIO) },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Ketuk untuk mengaktifkan visualizer", color = Color.White.copy(0.55f), fontSize = 12.sp)
+        }
+        return
     }
     Canvas(modifier.height(40.dp)) {
         val barW = size.width / VBARS
