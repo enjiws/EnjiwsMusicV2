@@ -1,10 +1,13 @@
 package com.enjiws.music.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -59,7 +62,10 @@ fun QueueSheet(onDismiss: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(Modifier.navigationBarsPadding()) {
             Row(Modifier.padding(start = 16.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Antrean (${s.queue.size})", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                Column(Modifier.weight(1f)) {
+                    Text("Antrean", style = MaterialTheme.typography.titleLarge)
+                    Text("${s.queue.size} lagu", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                }
                 TextButton(onClick = { saving = true }, enabled = s.queue.isNotEmpty()) { Text("Simpan") }
                 TextButton(onClick = { PlayerHub.clearUpcoming() }, enabled = s.index in 0 until s.queue.lastIndex) { Text("Kosongkan") }
             }
@@ -72,6 +78,7 @@ fun QueueSheet(onDismiss: () -> Unit) {
                     var drag by remember { mutableFloatStateOf(0f) }
                     Row(
                         Modifier.fillMaxWidth().height(56.dp)
+                            .background(if (current) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent, RoundedCornerShape(12.dp))
                             .zIndex(if (drag != 0f) 1f else 0f)
                             .graphicsLayer { translationY = drag }
                             .clickable { PlayerHub.skipTo(i) }

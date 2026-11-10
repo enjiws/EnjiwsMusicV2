@@ -4,7 +4,9 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 object Downloads {
     private fun sanitize(name: String) =
@@ -33,6 +35,23 @@ object Downloads {
                 UiBus.toast("Mengunduh “${track.title}” ke Musik/ENJIWS")
             } catch (e: Exception) {
                 UiBus.toast("Gagal mengunduh: ${friendlyError(e)}")
+            }
+        }
+    }
+
+    /** Hapus file unduhan (di Musik/ENJIWS) dari MediaStore. */
+    fun delete(context: Context, track: Track) {
+        val app = context.applicationContext
+        val uri = runCatching { Uri.parse(track.audioUrl) }.getOrNull() ?: return
+        AppScope.launch {
+            val removed = withContext(Dispatchers.IO) {
+                runCatching { app.contentResolver.delete(uri, null, null) }.getOrDefault(0)
+            }
+            if (removed > 0) {
+                LocalLibrary.refresh(app)
+                UiBus.toast("Unduhan dihapus")
+            } else {
+                UiBus.toast("Tidak bisa dihapus dari aplikasi — hapus manual dari Files")
             }
         }
     }
