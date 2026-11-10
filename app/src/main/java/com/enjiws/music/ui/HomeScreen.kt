@@ -2,6 +2,7 @@ package com.enjiws.music.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,15 +22,15 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,16 +38,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.enjiws.music.data.LocalLibrary
 import com.enjiws.music.data.Store
 import com.enjiws.music.data.Track
@@ -72,33 +69,28 @@ fun HomeScreen(
     val frequent = history.filter { it.plays > 1 }.sortedByDescending { it.plays }.take(5)
     val empty = history.isEmpty() && favorites.isEmpty() && playlists.isEmpty() && newest.isEmpty()
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
         item {
             val dateLine = remember { SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id", "ID")).format(Date()) }
-            Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("ENJIWS · HI-FI", color = Lime, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                     Text(greeting, style = MaterialTheme.typography.headlineLarge)
                     Text(dateLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                GlassIconButton(Icons.Rounded.Settings, "Pengaturan", onOpenSettings)
+                IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, "Pengaturan") }
             }
-
-            GlassCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp).pressable(onOpenSearch), radius = 28.dp) {
-                Row(Modifier.padding(horizontal = 18.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Search, null, tint = Lime)
+            Surface(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(28.dp))
+                    .clickable(onClick = onOpenSearch),
+                shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh
+            ) {
+                Row(Modifier.padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.width(12.dp))
                     Text("Cari lagu, artis, atau album", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-
-            if (!empty) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    QuickTile(Icons.Rounded.Favorite, "Favorit", "${favorites.size} lagu", Modifier.weight(1f)) { onOpenPlaylist(Store.FAV_ID) }
-                    QuickTile(Icons.Rounded.History, "Riwayat", "${history.size} lagu", Modifier.weight(1f)) { onOpenHistory() }
-                }
-            }
-
             if (history.isNotEmpty()) {
                 val hero = history.first().track
                 HeroCard(hero) { PlayerHub.play(history.take(15).map { it.track }, 0) }
@@ -174,47 +166,32 @@ fun HomeScreen(
     }
 }
 
-/** Ubin akses cepat bergaya kaca dengan ikon bergradien. */
-@Composable
-private fun QuickTile(icon: ImageVector, title: String, subtitle: String, modifier: Modifier, onClick: () -> Unit) {
-    GlassCard(modifier.pressable(onClick), radius = 20.dp) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).clip(CircleShape).background(AccentGradient), contentAlignment = Alignment.Center) {
-                Icon(icon, null, tint = Color(0xFF0B1500), modifier = Modifier.size(20.dp))
-            }
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
-                Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-            }
-        }
-    }
-}
-
-/** Kartu hero: cover lagu terakhir jadi latar penuh, teks di atas gradasi gelap, tombol putar bergradien. */
+/** Kartu hero editorial: lagu terakhir yang diputar, dengan glow emerald. */
 @Composable
 private fun HeroCard(track: Track, onPlay: () -> Unit) {
-    val shape = RoundedCornerShape(28.dp)
-    val cover = track.cover
-    Box(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp).height(210.dp)
-            .shadow(22.dp, shape, spotColor = Emerald.copy(alpha = 0.5f))
-            .clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .border(1.dp, GlassBorder, shape)
-            .pressable(onPlay)
+    Surface(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
-        if (cover != null) {
-            AsyncImage(model = cover, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        }
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.90f)))))
-        Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(0.72f).padding(start = 20.dp, bottom = 20.dp)) {
-            Text("LANJUTKAN MENDENGARKAN", color = Lime, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-            Spacer(Modifier.height(6.dp))
-            Text(track.title, style = MaterialTheme.typography.titleLarge, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(track.artist, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.72f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        GradientCircleButton(onPlay, 56.dp, Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 20.dp)) {
-            Icon(Icons.Rounded.PlayArrow, "Putar", tint = Color(0xFF0B1500), modifier = Modifier.size(30.dp))
+        Box(Modifier.background(Brush.verticalGradient(listOf(Emerald.copy(alpha = 0.20f), Color.Transparent)))) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Cover(track.cover, 104.dp, radius = 16.dp)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("LANJUTKAN MENDENGARKAN", color = Lime, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Spacer(Modifier.height(6.dp))
+                    Text(track.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(track.artist, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                IconButton(
+                    onClick = onPlay,
+                    modifier = Modifier.size(52.dp).clip(CircleShape).background(accentGradient())
+                ) {
+                    Icon(Icons.Rounded.PlayArrow, "Putar", tint = Color(0xFF0B1500), modifier = Modifier.size(28.dp))
+                }
+            }
         }
     }
 }

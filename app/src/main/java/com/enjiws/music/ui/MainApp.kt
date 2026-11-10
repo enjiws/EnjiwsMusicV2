@@ -1,21 +1,6 @@
 package com.enjiws.music.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.Alignment
-import androidx.compose.material3.Surface
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -96,16 +81,28 @@ fun MainApp(onExport: () -> Unit, onImport: () -> Unit) {
     }
 
     TrackMenuHost {
-        val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-        Box(Modifier.fillMaxSize().then(if (darkTheme) Modifier.aurora() else Modifier.background(MaterialTheme.colorScheme.background))) {
+        Box(Modifier.fillMaxSize()) {
             Scaffold(
-                containerColor = Color.Transparent,
                 snackbarHost = { SnackbarHost(snackbar) },
                 bottomBar = {
                     Column {
                         MiniPlayer(onOpen = { showPlayer = true })
                         if (topLevel) {
-                            Box(Modifier.navigationBarsPadding()) { PremiumNavBar(route) { go(it) } }
+                            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+                                topDests.forEach { d ->
+                                    NavigationBarItem(
+                                        selected = route == d.route, onClick = { go(d.route) },
+                                        icon = { Icon(d.icon, d.label) }, label = { Text(d.label) },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = Color(0xFF0B1500),
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor = MaterialTheme.colorScheme.primary,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    )
+                                }
+                            }
                         } else {
                             Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
                         }
@@ -154,38 +151,6 @@ fun MainApp(onExport: () -> Unit, onImport: () -> Unit) {
             }
             if (showQueue) QueueSheet { showQueue = false }
             BackHandler(enabled = showPlayer) { showPlayer = false }
-        }
-    }
-}
-
-/** Bilah navigasi melayang: pil kaca, tab aktif berubah jadi pil bergradien dengan label. */
-@Composable
-private fun PremiumNavBar(current: String?, onSelect: (String) -> Unit) {
-    Surface(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(30.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-        border = BorderStroke(1.dp, GlassBorder),
-        shadowElevation = 16.dp
-    ) {
-        Row(Modifier.padding(6.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            topDests.forEach { d ->
-                val selected = current == d.route
-                Row(
-                    Modifier.pressable { onSelect(d.route) }
-                        .clip(RoundedCornerShape(24.dp))
-                        .then(if (selected) Modifier.background(AccentGradient) else Modifier)
-                        .padding(horizontal = if (selected) 18.dp else 14.dp, vertical = 12.dp)
-                        .animateContentSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(d.icon, d.label, tint = if (selected) Color(0xFF0B1500) else MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (selected) {
-                        Spacer(Modifier.width(8.dp))
-                        Text(d.label, color = Color(0xFF0B1500), fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
-                    }
-                }
-            }
         }
     }
 }
