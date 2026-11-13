@@ -77,12 +77,12 @@ class YtSearchPager(private val query: String) {
     }
 }
 
-private fun StreamInfoItem.toYtTrack(): Track {
+internal fun StreamInfoItem.toYtTrack(): Track {
     val thumbs = getThumbnails()
     val thumb = thumbs.maxByOrNull { it.getHeight() }?.getUrl() ?: thumbs.firstOrNull()?.getUrl() ?: ""
     return Track(
         title = getName() ?: "",
-        artist = getUploaderName() ?: "YouTube",
+        artist = (getUploaderName() ?: "YouTube").removeSuffix(" - Topic"),
         artworkUrl = thumb,
         durationSeconds = getDuration().coerceAtLeast(0),
         source = "YouTube",

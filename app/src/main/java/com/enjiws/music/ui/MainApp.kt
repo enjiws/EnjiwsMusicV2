@@ -61,6 +61,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.enjiws.music.data.UiBus
+import com.enjiws.music.data.BrowseRegistry
 import kotlinx.coroutines.launch
 
 private data class TopDest(val route: String, val label: String, val icon: ImageVector)
@@ -119,10 +120,37 @@ fun MainApp(onExport: () -> Unit, onImport: () -> Unit) {
                             onOpenSearch = { go("search") },
                             onOpenSettings = { nav.navigate("settings") },
                             onOpenPlaylist = { nav.navigate("playlist/$it") },
-                            onOpenHistory = { nav.navigate("collection/${CollectionRegistry.put("history", "")}") }
+                            onOpenHistory = { nav.navigate("collection/${CollectionRegistry.put("history", "")}") },
+                            onOpenArtist = { nav.navigate("artist/${BrowseRegistry.put(it)}") },
+                            onOpenAlbum = { nav.navigate("album/${BrowseRegistry.put(it)}") },
+                            onOpenMix = { nav.navigate("collection/${CollectionRegistry.put("mix", it.title)}") }
                         )
                     }
-                    composable("search") { SearchScreen() }
+                    composable("search") {
+                        SearchScreen(
+                            onOpenArtist = { nav.navigate("artist/${BrowseRegistry.put(it)}") },
+                            onOpenAlbum = { nav.navigate("album/${BrowseRegistry.put(it)}") }
+                        )
+                    }
+                    composable("album/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
+                        val item = BrowseRegistry.get(entry.arguments?.getInt("id") ?: -1)
+                        if (item == null) {
+                            LaunchedEffect(Unit) { nav.popBackStack() }
+                        } else {
+                            AlbumScreen(item, onBack = { nav.popBackStack() })
+                        }
+                    }
+                    composable("artist/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { entry ->
+                        val item = BrowseRegistry.get(entry.arguments?.getInt("id") ?: -1)
+                        if (item == null) {
+                            LaunchedEffect(Unit) { nav.popBackStack() }
+                        } else {
+                            ArtistScreen(
+                                item, onBack = { nav.popBackStack() },
+                                onOpenAlbum = { nav.navigate("album/${BrowseRegistry.put(it)}") }
+                            )
+                        }
+                    }
                     composable("library") {
                         LibraryScreen(onOpenCollection = { k, n -> nav.navigate("collection/${CollectionRegistry.put(k, n)}") })
                     }

@@ -55,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.enjiws.music.data.Downloads
 import com.enjiws.music.data.LocalLibrary
+import com.enjiws.music.data.HomeFeed
 import com.enjiws.music.data.Store
 import com.enjiws.music.data.Track
 import com.enjiws.music.playback.PlayerHub
@@ -70,6 +71,7 @@ fun resolveCollection(kind: String, name: String): List<Track> {
         "album" -> songs.filter { (it.track.album.ifBlank { "Tanpa album" }) == name }.map { it.track }.sortedBy { it.title }
         "folder" -> songs.filter { it.folder == name }.map { it.track }
         "history" -> Store.history.map { it.track }
+        "mix" -> HomeFeed.mixes.firstOrNull { it.title == name }?.tracks.orEmpty()
         else -> emptyList()
     }
 }

@@ -29,10 +29,12 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +49,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.enjiws.music.data.BrowseItem
+import com.enjiws.music.data.HomeFeed
 import com.enjiws.music.data.LocalLibrary
+import com.enjiws.music.data.Mix
+import com.enjiws.music.data.Prefs
 import com.enjiws.music.data.Store
 import com.enjiws.music.data.Track
 import com.enjiws.music.playback.PlayerHub
@@ -61,8 +67,14 @@ fun HomeScreen(
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPlaylist: (String) -> Unit,
-    onOpenHistory: () -> Unit
+    onOpenHistory: () -> Unit,
+    onOpenArtist: (BrowseItem) -> Unit,
+    onOpenAlbum: (BrowseItem) -> Unit,
+    onOpenMix: (Mix) -> Unit
 ) {
+    // Ambil rekomendasi online; dipanggil ulang kalau pilihan bagian Beranda berubah.
+    LaunchedEffect(Prefs.hiddenSections) { HomeFeed.refresh() }
+
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val greeting = when (hour) { in 4..10 -> "Selamat pagi"; in 11..14 -> "Selamat siang"; in 15..17 -> "Selamat sore"; else -> "Selamat malam" }
     val history = Store.history
@@ -71,6 +83,7 @@ fun HomeScreen(
     val newest = LocalLibrary.songs.sortedByDescending { it.dateAddedSec }.take(15).map { it.track }
     val frequent = history.filter { it.plays > 1 }.sortedByDescending { it.plays }.take(5)
     val empty = history.isEmpty() && favorites.isEmpty() && playlists.isEmpty() && newest.isEmpty()
+    val hasOnline = HomeFeed.popular.isNotEmpty() || HomeFeed.releases.isNotEmpty()
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
@@ -88,7 +101,7 @@ fun HomeScreen(
                 Row(Modifier.padding(horizontal = 18.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(12.dp))
-                    Text("Cari lagu, artis, atau album", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Cari lagu, artis, album, atau genre", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -99,14 +112,15 @@ fun HomeScreen(
                 }
             }
 
-            if (history.isNotEmpty()) {
+            if (history.isNotEmpty() && Prefs.sectionOn("continue")) {
                 val hero = history.first().track
                 HeroCard(hero) { PlayerHub.play(history.take(15).map { it.track }, 0) }
             }
             MoodCard()
+            if (HomeFeed.loading) LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
         }
 
-        if (empty) {
+        if (empty && !hasOnline && !HomeFeed.loading) {
             item {
                 EmptyState(
                     Icons.Rounded.LibraryMusic, "Belum ada musik di sini",
@@ -114,10 +128,20 @@ fun HomeScreen(
                     Modifier.padding(top = 32.dp)
                 ) { Button(onClick = onOpenSearch) { Text("Cari musik") } }
             }
-            return@LazyColumn
         }
 
-        if (history.isNotEmpty()) {
+        if (Prefs.sectionOn("mix") && HomeFeed.mixes.isNotEmpty()) {
+            item { SectionTitle("Daily Mix") }
+            item {
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    items(HomeFeed.mixes, key = { it.title }) { m ->
+                        SquareCard(m.tracks.first().cover, m.title, m.subtitle, onClick = { onOpenMix(m) })
+                    }
+                }
+            }
+        }
+
+        if (Prefs.sectionOn("recent") && history.isNotEmpty()) {
             item { SectionTitle("Terakhir diputar") { TextButton(onClick = onOpenHistory) { Text("Semua", fontWeight = FontWeight.SemiBold, fontSize = 13.sp) } } }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -129,7 +153,27 @@ fun HomeScreen(
             }
         }
 
-        if (favorites.isNotEmpty()) {
+        if (Prefs.sectionOn("artists") && HomeFeed.artists.isNotEmpty()) {
+            item { SectionTitle("Artis favoritmu") }
+            item {
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    items(HomeFeed.artists, key = { it.url }) { a -> ArtistCircle(a) { onOpenArtist(a) } }
+                }
+            }
+        }
+
+        if (Prefs.sectionOn("albums") && HomeFeed.albums.isNotEmpty()) {
+            item { SectionTitle("Album untukmu") }
+            item {
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    items(HomeFeed.albums, key = { it.url }) { a ->
+                        SquareCard(a.thumb.ifBlank { null }, a.name, a.subtitle, onClick = { onOpenAlbum(a) })
+                    }
+                }
+            }
+        }
+
+        if (Prefs.sectionOn("favorites") && favorites.isNotEmpty()) {
             item { SectionTitle("Favorit") { TextButton(onClick = { onOpenPlaylist(Store.FAV_ID) }) { Text("Semua", fontWeight = FontWeight.SemiBold, fontSize = 13.sp) } } }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -141,7 +185,34 @@ fun HomeScreen(
             }
         }
 
-        if (playlists.isNotEmpty()) {
+        if (Prefs.sectionOn("popular") && HomeFeed.popular.isNotEmpty()) {
+            item { SectionTitle("Populer sekarang") }
+            item {
+                Text("Berdasarkan pencarian YouTube Music", Modifier.padding(horizontal = 20.dp), style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            item {
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val list = HomeFeed.popular
+                    itemsIndexed(list, key = { i, t -> "p$i${t.id}" }) { i, t ->
+                        SquareCard(t.cover, t.title, t.artist, onClick = { PlayerHub.play(list, i) })
+                    }
+                }
+            }
+        }
+
+        if (Prefs.sectionOn("releases") && HomeFeed.releases.isNotEmpty()) {
+            item { SectionTitle("Rilis baru") }
+            item {
+                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    items(HomeFeed.releases, key = { it.url }) { a ->
+                        SquareCard(a.thumb.ifBlank { null }, a.name, a.subtitle, onClick = { onOpenAlbum(a) })
+                    }
+                }
+            }
+        }
+
+        if (Prefs.sectionOn("playlists") && playlists.isNotEmpty()) {
             item { SectionTitle("Playlist kamu") }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -152,7 +223,7 @@ fun HomeScreen(
             }
         }
 
-        if (frequent.isNotEmpty()) {
+        if (Prefs.sectionOn("frequent") && frequent.isNotEmpty()) {
             item { SectionTitle("Paling sering diputar") }
             val list = frequent.map { it.track }
             itemsIndexed(list, key = { i, t -> "q$i${t.id}" }) { i, t ->
@@ -160,7 +231,7 @@ fun HomeScreen(
             }
         }
 
-        if (newest.isNotEmpty()) {
+        if (Prefs.sectionOn("newest") && newest.isNotEmpty()) {
             item { SectionTitle("Baru ditambahkan di perangkat") }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {

@@ -19,6 +19,8 @@ object Prefs {
     var autoplay by mutableStateOf(true); private set
     var dataSaver by mutableStateOf(false); private set
     var askDownloadQuality by mutableStateOf(true); private set
+    /** Kunci bagian Beranda yang DISEMBUNYIKAN pengguna (lihat HomeSections). */
+    var hiddenSections by mutableStateOf(setOf<String>()); private set
     var sources by mutableStateOf(setOf(Source.YouTube)); private set
     var eqEnabled by mutableStateOf(false); private set
     var eqLevels by mutableStateOf<List<Int>>(emptyList()); private set
@@ -42,6 +44,7 @@ object Prefs {
         autoplay = sp.getBoolean("autoplay", true)
         dataSaver = sp.getBoolean("datasaver", false)
         askDownloadQuality = sp.getBoolean("ask_dl_quality", true)
+        hiddenSections = sp.getString("home_hidden", "").orEmpty().split(",").filter { it.isNotBlank() }.toSet()
         eqEnabled = sp.getBoolean("eq_on", false)
         apiKey = sp.getString("api_key", "").orEmpty()
         serverUrl = sp.getString("srv_url", "").orEmpty()
@@ -57,6 +60,11 @@ object Prefs {
     fun updateAccent(v: Int) { accent = v.coerceIn(0, 4); sp.edit().putInt("accent", accent).apply() }
     fun updateDynamicColor(v: Boolean) { dynamicColor = v; sp.edit().putBoolean("dynamic", v).apply() }
     fun updateAutoplay(v: Boolean) { autoplay = v; sp.edit().putBoolean("autoplay", v).apply() }
+    fun sectionOn(key: String): Boolean = key !in hiddenSections
+    fun updateSection(key: String, on: Boolean) {
+        hiddenSections = if (on) hiddenSections - key else hiddenSections + key
+        sp.edit().putString("home_hidden", hiddenSections.joinToString(",")).apply()
+    }
     fun updateAskDownloadQuality(v: Boolean) { askDownloadQuality = v; sp.edit().putBoolean("ask_dl_quality", v).apply() }
     fun updateDataSaver(v: Boolean) { dataSaver = v; sp.edit().putBoolean("datasaver", v).apply() }
     fun updateEqEnabled(v: Boolean) { eqEnabled = v; sp.edit().putBoolean("eq_on", v).apply() }

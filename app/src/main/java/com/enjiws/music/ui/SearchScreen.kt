@@ -13,6 +13,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import com.enjiws.music.data.BrowseItem
+import com.enjiws.music.data.Browse
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -73,6 +79,23 @@ object SearchState {
     private var job: Job? = null
 
     private var runId = 0
+    /** 0 Semua, 1 Lagu, 2 Album, 3 Artis, 4 Playlist */
+    var category by mutableIntStateOf(0)
+    var albums by mutableStateOf<List<BrowseItem>>(emptyList()); private set
+    var artists by mutableStateOf<List<BrowseItem>>(emptyList()); private set
+    var playlists by mutableStateOf<List<BrowseItem>>(emptyList()); private set
+    var loadingCat by mutableStateOf(false); private set
+
+    fun selectCategory(c: Int) {
+        category = c
+        if (c == 4 && playlists.isEmpty() && query.isNotBlank()) {
+            val q = query
+            AppScope.launch {
+                loadingCat = true
+                try { playlists = runCatching { Browse.search("playlist", q) }.getOrDefault(emptyList()) } finally { loadingCat = false }
+            }
+        }
+    }
     private var pager: YtSearchPager? = null
     var hasMore by mutableStateOf(false); private set
     var loadingMore by mutableStateOf(false); private set
@@ -109,6 +132,9 @@ object SearchState {
         results = emptyList()
         hasMore = false
         loadingMore = false
+        albums = emptyList()
+        artists = emptyList()
+        playlists = emptyList()
         val yt = YtSearchPager(text)
         pager = yt
         val sources = if (Subsonic.configured) setOf(Source.YouTube, Source.Server) else setOf(Source.YouTube)
@@ -116,6 +142,9 @@ object SearchState {
             val collected = mutableListOf<Track>()
             val counts = mutableListOf<String>()
             val failed = mutableListOf<String>()
+            // Album dan artis dicari bersamaan dengan lagu (katalog YouTube Music).
+            launch { runCatching { Browse.search("album", text) }.onSuccess { if (id == runId) albums = it } }
+            launch { runCatching { Browse.search("artist", text) }.onSuccess { if (id == runId) artists = it } }
             // Tiap sumber jalan sendiri; hasilnya langsung tampil begitu selesai.
             sources.map { s ->
                 launch {
@@ -143,7 +172,7 @@ object SearchState {
 }
 
 @Composable
-fun SearchScreen() {
+fun SearchScreen(onOpenArtist: (BrowseItem) -> Unit, onOpenAlbum: (BrowseItem) -> Unit) {
     val focus = LocalFocusManager.current
     val context = LocalContext.current
     var focused by remember { mutableStateOf(SearchState.results.isEmpty()) }
@@ -184,6 +213,16 @@ fun SearchScreen() {
             ),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).onFocusChanged { focused = it.isFocused }
         )
+        val hasContent = SearchState.results.isNotEmpty() || SearchState.albums.isNotEmpty() ||
+            SearchState.artists.isNotEmpty() || SearchState.loading
+        if (hasContent && SearchState.query.isNotBlank()) {
+            Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Semua", "Lagu", "Album", "Artis", "Playlist").forEachIndexed { i, label ->
+                    FilterChip(selected = SearchState.category == i, onClick = { SearchState.selectCategory(i) }, label = { Text(label) })
+                }
+            }
+        }
+
         Box(Modifier.fillMaxSize()) {
             when {
                 focused && suggestions.isNotEmpty() -> LazyColumn {
@@ -199,6 +238,19 @@ fun SearchScreen() {
                         SuggestionRow(Icons.Rounded.History, s, onClick = { submit(s) }, onRemove = { Store.removeSearch(s) })
                     }
                 }
+                hasContent && SearchState.category >= 2 -> {
+                    val shown = when (SearchState.category) { 2 -> SearchState.albums; 3 -> SearchState.artists; else -> SearchState.playlists }
+                    if (shown.isEmpty()) {
+                        if (SearchState.loading || SearchState.loadingCat) CircularProgressIndicator(Modifier.align(Alignment.Center))
+                        else Text("Tidak ada hasil di kategori ini.", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+                            items(shown, key = { it.url }) { b ->
+                                BrowseRow(b) { if (b.kind == "artist") onOpenArtist(b) else onOpenAlbum(b) }
+                            }
+                        }
+                    }
+                }
                 SearchState.loading && SearchState.results.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 SearchState.results.isNotEmpty() -> {
                     val listState = rememberLazyListState()
@@ -211,6 +263,25 @@ fun SearchScreen() {
                             if (SearchState.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
                             Text(SearchState.message, Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        if (SearchState.category == 0 && SearchState.artists.isNotEmpty()) {
+                            item { SectionTitle("Artis") }
+                            item {
+                                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    items(SearchState.artists.take(8), key = { it.url }) { a -> ArtistCircle(a) { onOpenArtist(a) } }
+                                }
+                            }
+                        }
+                        if (SearchState.category == 0 && SearchState.albums.isNotEmpty()) {
+                            item { SectionTitle("Album") }
+                            item {
+                                LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    items(SearchState.albums.take(8), key = { it.url }) { a ->
+                                        SquareCard(a.thumb.ifBlank { null }, a.name, a.subtitle, onClick = { onOpenAlbum(a) })
+                                    }
+                                }
+                            }
+                            item { SectionTitle("Lagu") }
                         }
                         itemsIndexed(SearchState.results, key = { i, t -> "$i${t.key}" }) { _, t ->
                             TrackRow(t, showSource = true, onClick = {
@@ -229,12 +300,17 @@ fun SearchScreen() {
                         }
                     }
                 }
-                else -> EmptyState(
-                    Icons.Rounded.Search,
-                    if (SearchState.message.isNotBlank()) "Tidak ada hasil" else "Cari musik",
-                    SearchState.message.ifBlank { "Ketik judul lagu atau nama artis." },
-                    Modifier.align(Alignment.Center)
-                )
+                else -> Column(Modifier.align(Alignment.Center).verticalScroll(rememberScrollState())) {
+                    EmptyState(
+                        Icons.Rounded.Search,
+                        if (SearchState.message.isNotBlank()) "Tidak ada hasil" else "Cari musik",
+                        SearchState.message.ifBlank { "Ketik judul lagu atau nama artis." },
+                        Modifier
+                    )
+
+                    SectionTitle("Jelajahi genre")
+                    GenreChips { SearchState.run(it) }
+                }
             }
         }
     }
@@ -249,5 +325,25 @@ private fun SuggestionRow(icon: androidx.compose.ui.graphics.vector.ImageVector,
         Text(text, Modifier.weight(1f), maxLines = 1)
         if (onRemove != null) IconButton(onClick = onRemove) { Icon(Icons.Rounded.Clear, "Hapus", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
         else Spacer(Modifier.width(12.dp))
+    }
+}
+
+private val genres = listOf("Pop", "Rock", "Hip-Hop", "R&B", "EDM", "Jazz", "Klasik", "Metal", "Indie", "K-Pop", "Dangdut", "Lo-fi", "Reggae", "Country")
+
+private fun genreQuery(g: String): String = when (g) {
+    "Dangdut" -> "lagu dangdut populer"
+    "Klasik" -> "classical music"
+    "Lo-fi" -> "lofi hip hop"
+    "K-Pop" -> "kpop hits"
+    else -> "$g music"
+}
+
+/** Genre jadi dua baris chip yang bisa digeser; ketuk = cari musik genre itu. */
+@Composable
+private fun GenreChips(onPick: (String) -> Unit) {
+    listOf(genres.take(7), genres.drop(7)).forEach { row ->
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            row.forEach { g -> FilterChip(selected = false, onClick = { onPick(genreQuery(g)) }, label = { Text(g) }) }
+        }
     }
 }

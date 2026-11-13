@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.enjiws.music.playback.BitPerfect
 import com.enjiws.music.playback.PlayerVolume
 import com.enjiws.music.data.Prefs
+import com.enjiws.music.data.HomeSections
 import com.enjiws.music.data.Source
 import com.enjiws.music.data.Store
 import com.enjiws.music.data.UiBus
@@ -86,6 +87,11 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             SwitchRow("Warna dinamis", "Ikuti warna wallpaper (Android 12+)", Prefs.dynamicColor) { Prefs.updateDynamicColor(it) }
+        }
+
+        Header("Beranda")
+        HomeSections.all.forEach { (key, label, desc) ->
+            SwitchRow(label, desc, Prefs.sectionOn(key)) { Prefs.updateSection(key, it) }
         }
 
         Header("Pemutaran")
