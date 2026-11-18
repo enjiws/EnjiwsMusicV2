@@ -116,7 +116,8 @@ object Subsonic {
                 detail = info.detail + " · file asli tanpa konversi",
                 url = url("download", "id=${enc(id)}"),
                 ext = suffix,
-                tag = suffix.lowercase() + if (bits > 0 && hz > 0) "-$bits-${hz / 1000}k" else ""
+                tag = suffix.lowercase() + if (bits > 0 && hz > 0) "-$bits-${hz / 1000}k" else "",
+                estimatedSizeBytes = song?.optLong("size")?.takeIf { it > 0L }
             )
         )
         if (lossless || kbps > 192) {

@@ -14,11 +14,13 @@ object Prefs {
     /** 0 = ikuti sistem, 1 = gelap, 2 = terang */
     var themeMode by mutableIntStateOf(1); private set
     /** Warna aksen (0 = Lime, 1 = Emerald, 2 = Emas, 3 = Pink, 4 = Langit). */
-    var accent by mutableIntStateOf(1); private set
+    var accent by mutableIntStateOf(0); private set
     var dynamicColor by mutableStateOf(false); private set
     var autoplay by mutableStateOf(true); private set
     var dataSaver by mutableStateOf(false); private set
     var askDownloadQuality by mutableStateOf(true); private set
+    /** Kualitas target download; tidak mengubah atau meng-upscale kualitas sumber. */
+    var preferredAudioQuality by mutableStateOf(AudioQuality.LOSSLESS); private set
     /** Kunci bagian Beranda yang DISEMBUNYIKAN pengguna (lihat HomeSections). */
     var hiddenSections by mutableStateOf(setOf<String>()); private set
     var sources by mutableStateOf(setOf(Source.YouTube)); private set
@@ -39,11 +41,12 @@ object Prefs {
         if (::sp.isInitialized) return
         sp = context.getSharedPreferences("enjiws_settings", Context.MODE_PRIVATE)
         themeMode = sp.getInt("theme", 1)
-        accent = sp.getInt("accent", 1)
+        accent = sp.getInt("accent", 0)
         dynamicColor = sp.getBoolean("dynamic", false)
         autoplay = sp.getBoolean("autoplay", true)
         dataSaver = sp.getBoolean("datasaver", false)
         askDownloadQuality = sp.getBoolean("ask_dl_quality", true)
+        preferredAudioQuality = AudioQuality.entries.getOrElse(sp.getInt("preferred_audio_quality", AudioQuality.LOSSLESS.ordinal)) { AudioQuality.LOSSLESS }
         hiddenSections = sp.getString("home_hidden", "").orEmpty().split(",").filter { it.isNotBlank() }.toSet()
         eqEnabled = sp.getBoolean("eq_on", false)
         apiKey = sp.getString("api_key", "").orEmpty()
@@ -66,6 +69,7 @@ object Prefs {
         sp.edit().putString("home_hidden", hiddenSections.joinToString(",")).apply()
     }
     fun updateAskDownloadQuality(v: Boolean) { askDownloadQuality = v; sp.edit().putBoolean("ask_dl_quality", v).apply() }
+    fun updatePreferredAudioQuality(v: AudioQuality) { preferredAudioQuality = v; sp.edit().putInt("preferred_audio_quality", v.ordinal).apply() }
     fun updateDataSaver(v: Boolean) { dataSaver = v; sp.edit().putBoolean("datasaver", v).apply() }
     fun updateEqEnabled(v: Boolean) { eqEnabled = v; sp.edit().putBoolean("eq_on", v).apply() }
     fun updateEqLevels(v: List<Int>) { eqLevels = v; sp.edit().putString("eq_levels", v.joinToString(",")).apply() }

@@ -373,7 +373,7 @@ private fun QualityChooser(track: Track, onPick: (DownloadOption) -> Unit) {
             list.forEach { o ->
                 Column(Modifier.fillMaxWidth().clickable { onPick(o) }.padding(horizontal = 20.dp, vertical = 12.dp)) {
                     Text(o.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    Text(o.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(o.detail + (o.estimatedSizeBytes?.let { " · ${com.enjiws.music.data.formatFileSize(it)}" } ?: ""), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (track.subId.isBlank()) {

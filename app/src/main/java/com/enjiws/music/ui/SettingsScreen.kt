@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.enjiws.music.playback.BitPerfect
 import com.enjiws.music.playback.PlayerVolume
 import com.enjiws.music.data.Prefs
+import com.enjiws.music.data.AudioQuality
 import com.enjiws.music.data.HomeSections
 import com.enjiws.music.data.Source
 import com.enjiws.music.data.Store
@@ -98,6 +99,19 @@ fun SettingsScreen(onBack: () -> Unit, onExport: () -> Unit, onImport: () -> Uni
         SwitchRow("Radio otomatis", "Tambahkan lagu terkait saat antrean habis", Prefs.autoplay) { Prefs.updateAutoplay(it) }
         SwitchRow("Hemat data", "Pilih kualitas audio online yang lebih rendah", Prefs.dataSaver) { Prefs.updateDataSaver(it) }
         SwitchRow("Tanya kualitas saat unduh", "Pilih kualitas setiap kali mengunduh. Kalau mati, otomatis kualitas terbaik.", Prefs.askDownloadQuality) { Prefs.updateAskDownloadQuality(it) }
+        Text("Target kualitas unduhan", Modifier.padding(start = 16.dp, top = 12.dp, bottom = 8.dp), style = MaterialTheme.typography.bodyMedium)
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            AudioQuality.entries.forEach { quality ->
+                Row(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).clickable { Prefs.updatePreferredAudioQuality(quality) }.padding(vertical = 8.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(quality.label, style = MaterialTheme.typography.bodyLarge)
+                        Text(quality.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (Prefs.preferredAudioQuality == quality) Icon(Icons.Rounded.Check, "Dipilih", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+        Text("Target ini menentukan preferensi, bukan memaksa konversi. Jika sumber tidak menyediakan kualitas tersebut, Enjiws Music tetap memakai kualitas asli yang tersedia dan tidak melakukan upscaling.", Modifier.padding(horizontal = 16.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         ActionRow("Equalizer", "Atur frekuensi suara") { eq = true }
 
         Header("Audio engine")

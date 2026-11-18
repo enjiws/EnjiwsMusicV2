@@ -22,7 +22,7 @@ object Downloads {
         AppScope.launch {
             try {
                 // Tanpa pilihan -> otomatis kualitas terbaik yang tersedia.
-                val opt = option ?: DownloadOptions.forTrack(track).first()
+                val opt = option ?: DownloadOptions.preferred(DownloadOptions.forTrack(track), Prefs.preferredAudioQuality)
                 val tag = if (opt.tag.isNotBlank()) " [${opt.tag}]" else ""
                 val file = sanitize("${track.artist} - ${track.title}") + tag + "." + opt.ext
                 val dm = app.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager

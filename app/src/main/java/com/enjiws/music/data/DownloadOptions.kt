@@ -13,7 +13,8 @@ data class DownloadOption(
     val detail: String,
     val url: String,
     val ext: String,
-    val tag: String = ""
+    val tag: String = "",
+    val estimatedSizeBytes: Long? = null
 )
 
 /**
@@ -34,7 +35,26 @@ object DownloadOptions {
             }
         }
         if (list.isEmpty()) throw IllegalStateException("Tidak ada pilihan kualitas untuk lagu ini")
-        list
+        list.map { option ->
+            if (option.estimatedSizeBytes != null) option else {
+                val kbps = Regex("(\\d+)\\s*kbps", RegexOption.IGNORE_CASE).find(option.detail)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                option.copy(estimatedSizeBytes = estimateAudioBytes(t.durationSeconds, kbps))
+            }
+        }
+    }
+
+    /** Pilih opsi terdekat dengan target pengguna; fallback tetap ke opsi sumber terbaik. */
+    fun preferred(options: List<DownloadOption>, target: AudioQuality): DownloadOption {
+        if (options.isEmpty()) throw IllegalArgumentException("Daftar opsi unduhan kosong")
+        val lossless = options.filter { it.detail.contains("file asli", true) || it.title.contains("lossless", true) || it.title.contains("hi-res", true) }
+        val hiRes = lossless.filter { it.title.contains("hi-res", true) }
+        val lossy = options.filter { it.detail.contains("lossy", true) || it.detail.contains("mp3", true) || it.detail.contains("aac", true) || it.detail.contains("opus", true) }
+        return when (target) {
+            AudioQuality.STANDARD -> lossy.firstOrNull() ?: options.last()
+            AudioQuality.LOSSLESS -> lossless.firstOrNull() ?: options.first()
+            AudioQuality.HI_RES -> hiRes.firstOrNull() ?: lossless.firstOrNull() ?: options.first()
+            AudioQuality.HI_RES_MAX -> hiRes.firstOrNull { it.detail.contains("192", true) || it.title.contains("max", true) } ?: hiRes.firstOrNull() ?: lossless.firstOrNull() ?: options.first()
+        }
     }
 
     private fun fromNewPipe(service: StreamingService, url: String): List<DownloadOption> {
@@ -65,7 +85,8 @@ object DownloadOptions {
                 detail = listOfNotNull(name, if (kbps > 0) "$kbps kbps" else null, "lossy").joinToString(" · "),
                 url = s.getContent(),
                 ext = ext,
-                tag = name.lowercase() + if (kbps > 0) "$kbps" else ""
+                tag = name.lowercase() + if (kbps > 0) "$kbps" else "",
+                estimatedSizeBytes = null
             )
         }
     }
