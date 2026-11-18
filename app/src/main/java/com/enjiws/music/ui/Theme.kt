@@ -67,19 +67,21 @@ val Poppins = FontFamily(
 val HiResGold = Color(0xFFFFD36B)
 
 private val Dark = darkColorScheme(
-    primary = Lime, onPrimary = Color(0xFF0B1500),
-    primaryContainer = Color(0xFF263D00), onPrimaryContainer = Color(0xFFB9F55A),
-    secondary = Color(0xFFB6CCA0), onSecondary = Color(0xFF1F3010),
-    secondaryContainer = Color(0xFF2E4220), onSecondaryContainer = Color(0xFFD1E8BA),
-    tertiary = Color(0xFFFFEA00), onTertiary = Color(0xFF211C00),
-    background = Color(0xFF050807), onBackground = Color(0xFFE4E9DE),
-    surface = Color(0xFF050807), onSurface = Color(0xFFE4E9DE),
-    surfaceVariant = Color(0xFF223129), onSurfaceVariant = Color(0xFFB3BDAA),
-    surfaceContainerLowest = Color(0xFF030604), surfaceContainerLow = Color(0xFF0A100C),
-    surfaceContainer = Color(0xFF101710), surfaceContainerHigh = Color(0xFF16211A),
-    surfaceContainerHighest = Color(0xFF1E2C22),
-    outline = Color(0xFF7D8776), outlineVariant = Color(0xFF2C3A30),
-    error = Color(0xFFFF6B6B)
+    primary = Emerald, onPrimary = Color(0xFF00251B),
+    primaryContainer = Color(0xFF07513F), onPrimaryContainer = Color(0xFF9AF5D8),
+    secondary = Color(0xFFC7D8CE), onSecondary = Color(0xFF20352D),
+    secondaryContainer = Color(0xFF29483C), onSecondaryContainer = Color(0xFFDCEFE5),
+    tertiary = HiResGold, onTertiary = Color(0xFF302300),
+    background = Color(0xFF050A08), onBackground = Color(0xFFE8F0EB),
+    surface = Color(0xFF050A08), onSurface = Color(0xFFE8F0EB),
+    surfaceVariant = Color(0xFF20352C), onSurfaceVariant = Color(0xFFB5C9BE),
+    surfaceContainerLowest = Color(0xFF030705),
+    surfaceContainerLow = Color(0xFF0A120E),
+    surfaceContainer = Color(0xFF101B15),
+    surfaceContainerHigh = Color(0xFF17251D),
+    surfaceContainerHighest = Color(0xFF203128),
+    outline = Color(0xFF82998C), outlineVariant = Color(0xFF2A4035),
+    error = Color(0xFFFF7777)
 )
 
 private val Light = lightColorScheme(

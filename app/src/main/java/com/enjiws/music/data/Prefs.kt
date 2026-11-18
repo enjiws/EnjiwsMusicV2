@@ -14,7 +14,7 @@ object Prefs {
     /** 0 = ikuti sistem, 1 = gelap, 2 = terang */
     var themeMode by mutableIntStateOf(1); private set
     /** Warna aksen (0 = Lime, 1 = Emerald, 2 = Emas, 3 = Pink, 4 = Langit). */
-    var accent by mutableIntStateOf(0); private set
+    var accent by mutableIntStateOf(1); private set
     var dynamicColor by mutableStateOf(false); private set
     var autoplay by mutableStateOf(true); private set
     var dataSaver by mutableStateOf(false); private set
@@ -39,7 +39,7 @@ object Prefs {
         if (::sp.isInitialized) return
         sp = context.getSharedPreferences("enjiws_settings", Context.MODE_PRIVATE)
         themeMode = sp.getInt("theme", 1)
-        accent = sp.getInt("accent", 0)
+        accent = sp.getInt("accent", 1)
         dynamicColor = sp.getBoolean("dynamic", false)
         autoplay = sp.getBoolean("autoplay", true)
         dataSaver = sp.getBoolean("datasaver", false)
