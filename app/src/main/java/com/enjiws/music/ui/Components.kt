@@ -151,7 +151,7 @@ fun PlayingBars(active: Boolean = true, color: Color = MaterialTheme.colorScheme
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier, action: (@Composable () -> Unit)? = null) {
     Row(modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(4.dp).height(20.dp).clip(RoundedCornerShape(2.dp)).background(AccentGradient))
+        Box(Modifier.width(4.dp).height(20.dp).clip(RoundedCornerShape(2.dp)).background(MaterialTheme.colorScheme.primary))
         Spacer(Modifier.width(10.dp))
         Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
         action?.invoke()
@@ -227,29 +227,27 @@ fun MiniPlayer(onOpen: () -> Unit, modifier: Modifier = Modifier) {
     val progress = if (s.durationMs > 0) (pos.toFloat() / s.durationMs).coerceIn(0f, 1f) else 0f
     Surface(
         modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)
-            .shadow(14.dp, RoundedCornerShape(24.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f))
-            .border(1.dp, GlassBorder, RoundedCornerShape(24.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
             .clickable(onClick = onOpen),
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
-        tonalElevation = 2.dp
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
         Column {
             Row(Modifier.padding(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Cover(track.cover, 48.dp, radius = 12.dp)
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    Text(track.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp,
+                    Text(track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text(track.artist, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = { PlayerHub.previous() }) { Icon(Icons.Rounded.SkipPrevious, "Sebelumnya") }
                 IconButton(
                     onClick = { PlayerHub.togglePlay() },
-                    modifier = Modifier.size(46.dp).clip(RoundedCornerShape(50)).background(AccentGradient)
+                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(50)).background(MaterialTheme.colorScheme.primary)
                 ) {
                     Icon(if (s.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (s.isPlaying) "Jeda" else "Putar",
-                        tint = Color(0xFF0B1500))
+                        tint = MaterialTheme.colorScheme.onPrimary)
                 }
                 IconButton(onClick = { PlayerHub.next() }) { Icon(Icons.Rounded.SkipNext, "Berikutnya") }
             }
@@ -373,7 +371,7 @@ private fun QualityChooser(track: Track, onPick: (DownloadOption) -> Unit) {
             list.forEach { o ->
                 Column(Modifier.fillMaxWidth().clickable { onPick(o) }.padding(horizontal = 20.dp, vertical = 12.dp)) {
                     Text(o.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-                    Text(o.detail + (o.estimatedSizeBytes?.let { " · ${com.enjiws.music.data.formatFileSize(it)}" } ?: ""), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(o.detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (track.subId.isBlank()) {
@@ -416,7 +414,7 @@ fun NameDialog(title: String, initial: String = "", confirm: String = "Simpan", 
 @Composable
 fun SquareCard(cover: Any?, title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.width(140.dp).pressable(onClick).padding(4.dp)) {
-        CoverBox(cover, Modifier.size(132.dp).shadow(12.dp, RoundedCornerShape(18.dp), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)), radius = 18.dp, iconSize = 44.dp)
+        CoverBox(cover, Modifier.size(132.dp), radius = 18.dp, iconSize = 44.dp)
         Spacer(Modifier.height(8.dp))
         Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
         Text(subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)

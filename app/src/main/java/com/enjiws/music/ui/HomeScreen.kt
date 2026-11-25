@@ -90,7 +90,7 @@ fun HomeScreen(
             val dateLine = remember { SimpleDateFormat("EEEE, d MMMM yyyy", Locale("id", "ID")).format(Date()) }
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("ENJIWS · HI-FI", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                    Text("Enjiws Music", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Text(greeting, style = MaterialTheme.typography.headlineLarge)
                     Text(dateLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -250,13 +250,13 @@ fun HomeScreen(
 private fun QuickTile(icon: ImageVector, title: String, subtitle: String, modifier: Modifier, onClick: () -> Unit) {
     GlassCard(modifier.pressable(onClick), radius = 20.dp) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).clip(CircleShape).background(AccentGradient), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) {
                 Icon(icon, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column {
                 Text(title, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
-                Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                Text(subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
         }
     }
@@ -269,9 +269,8 @@ private fun HeroCard(track: Track, onPlay: () -> Unit) {
     val cover = track.cover
     Box(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp).height(210.dp)
-            .shadow(22.dp, shape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
             .clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .border(1.dp, GlassBorder, shape)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
             .pressable(onPlay)
     ) {
         if (cover != null) {
@@ -279,7 +278,7 @@ private fun HeroCard(track: Track, onPlay: () -> Unit) {
         }
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.10f), Color.Black.copy(alpha = 0.90f)))))
         Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(0.72f).padding(start = 20.dp, bottom = 20.dp)) {
-            Text("LANJUTKAN MENDENGARKAN", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+            Text("Lanjutkan mendengarkan", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
             Text(track.title, style = MaterialTheme.typography.titleLarge, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(track.artist, style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.72f), maxLines = 1, overflow = TextOverflow.Ellipsis)

@@ -164,8 +164,14 @@ private fun rememberDominantColor(model: Any?): Color {
 
 private enum class PlayerSheet { Speed, Sleep, Effects, Eq, Path }
 
+/** Pemutar penuh: latarnya selalu gelap, jadi isinya dipaksa memakai skema gelap agar teks selalu terbaca. */
 @Composable
 fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
+    ForceDark { PlayerScreenContent(onClose, onQueue) }
+}
+
+@Composable
+private fun PlayerScreenContent(onClose: () -> Unit, onQueue: () -> Unit) {
     val s by PlayerHub.state.collectAsState()
     val track = s.track
     if (track == null) { LaunchedEffect(Unit) { onClose() }; return }
@@ -211,8 +217,8 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                 Box(Modifier.width(40.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(white.copy(0.5f)))
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    (if (track.isPreview) "Pratinjau 30 detik" else "Diputar dari ${track.source.ifBlank { "—" }}").uppercase(),
-                    color = white.copy(0.55f), fontSize = 11.sp, letterSpacing = 1.sp, maxLines = 1
+                    if (track.isPreview) "Pratinjau 30 detik" else "Diputar dari ${track.source.ifBlank { "—" }}",
+                    color = white.copy(0.75f), fontSize = 13.sp, maxLines = 1
                 )
             }
 
@@ -235,7 +241,7 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                             )
                             CoverBox(
                                 track.cover,
-                                Modifier.size(side).shadow(24.dp, RoundedCornerShape(20.dp), spotColor = bg).graphicsLayer { scaleX = scale; scaleY = scale },
+                                Modifier.size(side).shadow(16.dp, RoundedCornerShape(20.dp)).graphicsLayer { scaleX = scale; scaleY = scale },
                                 radius = 20.dp, iconSize = side * 0.3f
                             )
                         }
@@ -247,9 +253,9 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
             Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(track.title, color = white, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(track.artist, color = white.copy(0.65f), fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(track.artist, color = white.copy(0.80f), fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                CircleButton(if (fav) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit", tint = if (fav) Lime else Color.White) { Store.toggleFavorite(track) }
+                CircleButton(if (fav) Icons.Rounded.Star else Icons.Rounded.StarBorder, "Favorit", tint = if (fav) MaterialTheme.colorScheme.primary else Color.White) { Store.toggleFavorite(track) }
                 Spacer(Modifier.width(8.dp))
                 CircleButton(Icons.Rounded.MoreHoriz, "Menu") { openMenu(track, null) }
             }
@@ -270,13 +276,13 @@ fun PlayerScreen(onClose: () -> Unit, onQueue: () -> Unit) {
                     Icon(Icons.Rounded.SkipPrevious, "Sebelumnya", tint = white, modifier = Modifier.size(40.dp))
                 }
                 Box(
-                    Modifier.size(76.dp).shadow(16.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
-                        .clip(CircleShape).background(accentGradient()).clickable { PlayerHub.togglePlay() },
+                    Modifier.size(76.dp)
+                        .clip(CircleShape).background(MaterialTheme.colorScheme.primary).clickable { PlayerHub.togglePlay() },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (s.buffering) CircularProgressIndicator(Modifier.size(36.dp), color = Color(0xFF0B1500), strokeWidth = 3.dp)
+                    if (s.buffering) CircularProgressIndicator(Modifier.size(36.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 3.dp)
                     else Icon(if (s.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (s.isPlaying) "Jeda" else "Putar",
-                        tint = Color(0xFF0B1500), modifier = Modifier.size(36.dp))
+                        tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(36.dp))
                 }
                 IconButton(onClick = { PlayerHub.next() }, modifier = Modifier.size(64.dp)) {
                     Icon(Icons.Rounded.SkipNext, "Berikutnya", tint = white, modifier = Modifier.size(40.dp))
@@ -389,9 +395,9 @@ private fun SeekBar(durationMs: Long, center: @Composable () -> Unit) {
             colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = MaterialTheme.colorScheme.primary, inactiveTrackColor = Color.White.copy(0.25f))
         )
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(formatTime(shown), color = Color.White.copy(0.75f), fontSize = 12.sp)
+            Text(formatTime(shown), color = Color.White.copy(0.85f), fontSize = 13.sp)
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) { center() }
-            Text(if (durationMs > 0) "-" + formatTime((durationMs - shown).coerceAtLeast(0L)) else "--:--", color = Color.White.copy(0.75f), fontSize = 12.sp)
+            Text(if (durationMs > 0) "-" + formatTime((durationMs - shown).coerceAtLeast(0L)) else "--:--", color = Color.White.copy(0.85f), fontSize = 13.sp)
         }
     }
 }

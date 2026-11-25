@@ -56,7 +56,7 @@ fun ArtistCircle(item: BrowseItem, onClick: () -> Unit) {
         Spacer(Modifier.height(6.dp))
         Text(item.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium, fontSize = 13.sp, textAlign = TextAlign.Center)
         if (item.subtitle.isNotBlank()) {
-            Text(item.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 11.sp, textAlign = TextAlign.Center,
+            Text(item.subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp, textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

@@ -9,6 +9,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Row
@@ -187,32 +189,29 @@ fun MainApp(onExport: () -> Unit, onImport: () -> Unit) {
     }
 }
 
-/** Bilah navigasi melayang: pil kaca, tab aktif berubah jadi pil bergradien dengan label. */
+/** Bilah navigasi datar: ikon + label selalu terlihat, tab aktif memakai warna aksen. */
 @Composable
 private fun PremiumNavBar(current: String?, onSelect: (String) -> Unit) {
     Surface(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(30.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-        border = BorderStroke(1.dp, GlassBorder),
-        shadowElevation = 16.dp
+        Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Row(Modifier.padding(6.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically
+        ) {
             topDests.forEach { d ->
                 val selected = current == d.route
-                Row(
-                    Modifier.pressable { onSelect(d.route) }
-                        .clip(RoundedCornerShape(24.dp))
-                        .then(if (selected) Modifier.background(AccentGradient) else Modifier)
-                        .padding(horizontal = if (selected) 18.dp else 14.dp, vertical = 12.dp)
-                        .animateContentSize(),
-                    verticalAlignment = Alignment.CenterVertically
+                val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                Column(
+                    Modifier.weight(1f).pressable { onSelect(d.route) }.padding(vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(d.icon, d.label, tint = if (selected) Color(0xFF0B1500) else MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (selected) {
-                        Spacer(Modifier.width(8.dp))
-                        Text(d.label, color = Color(0xFF0B1500), fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
-                    }
+                    Icon(d.icon, d.label, tint = tint, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.height(2.dp))
+                    Text(d.label, color = tint, style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1)
                 }
             }
         }

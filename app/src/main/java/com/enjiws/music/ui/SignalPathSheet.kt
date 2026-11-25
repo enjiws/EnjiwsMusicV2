@@ -70,7 +70,7 @@ private fun StepRow(n: Int, st: PathStep) {
         ) { Text("$n", color = MaterialTheme.colorScheme.onPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.width(12.dp))
         Column {
-            Text(st.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp)
+            Text(st.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(st.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
             if (st.detail.isNotBlank()) Text(st.detail, style = MaterialTheme.typography.bodyMedium)
             if (st.note.isNotBlank()) Text(st.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

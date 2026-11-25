@@ -37,9 +37,9 @@ import com.enjiws.music.data.Prefs
 /** Aksen yang sedang dipilih di Pengaturan. */
 fun currentAccent(): Accent = Accents[Prefs.accent.coerceIn(Accents.indices)]
 
-/** Pantulan tepi kaca: terang di sudut kiri-atas, memudar, lalu sentuhan warna aksen. */
+/** Garis tepi tipis dan tenang untuk kartu/tombol (tanpa gradien warna-warni). */
 val GlassBorder: Brush
-    get() = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.20f), Color.White.copy(alpha = 0.04f), currentAccent().color.copy(alpha = 0.24f)))
+    get() = Brush.linearGradient(listOf(Color.White.copy(alpha = 0.10f), Color.White.copy(alpha = 0.10f)))
 
 /** Animasi tekan: mengecil sedikit saat disentuh lalu memantul kembali. */
 fun Modifier.pressable(onClick: () -> Unit): Modifier = composed {
@@ -55,32 +55,26 @@ fun Modifier.pressable(onClick: () -> Unit): Modifier = composed {
         .clickable(interactionSource = source, indication = null, onClick = onClick)
 }
 
-/** Latar "aurora": cahaya aksen dari kiri-atas dan semburat glow di kanan, di atas hitam pekat. */
+/** Latar polos hitam dengan semburat aksen sangat tipis di bagian atas. */
 fun Modifier.aurora(): Modifier = drawBehind {
     val w = size.width
-    val h = size.height
-    drawRect(Color(0xFF050807))
+    drawRect(Color(0xFF08080A))
     val accent = currentAccent()
-    val c1 = Offset(w * 0.05f, h * 0.02f)
+    val c = Offset(w * 0.5f, 0f)
     drawCircle(
-        brush = Brush.radialGradient(listOf(accent.color.copy(alpha = 0.24f), Color.Transparent), center = c1, radius = w),
-        radius = w, center = c1
-    )
-    val c2 = Offset(w, h * 0.38f)
-    drawCircle(
-        brush = Brush.radialGradient(listOf(accent.glow.copy(alpha = 0.10f), Color.Transparent), center = c2, radius = w * 0.8f),
-        radius = w * 0.8f, center = c2
+        brush = Brush.radialGradient(listOf(accent.color.copy(alpha = 0.10f), Color.Transparent), center = c, radius = w * 0.9f),
+        radius = w * 0.9f, center = c
     )
 }
 
-/** Kartu kaca: isi tembus pandang dengan tepi bergradien. */
+/** Kartu datar: permukaan solid dengan garis tepi tipis. */
 @Composable
 fun GlassCard(modifier: Modifier = Modifier, radius: Dp = 24.dp, content: @Composable () -> Unit) {
     Surface(
         modifier,
         shape = RoundedCornerShape(radius),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.70f),
-        border = BorderStroke(1.dp, GlassBorder),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         content = content
     )
 }
@@ -90,20 +84,19 @@ fun GlassCard(modifier: Modifier = Modifier, radius: Dp = 24.dp, content: @Compo
 fun GlassIconButton(icon: ImageVector, desc: String, onClick: () -> Unit) {
     Box(
         Modifier.size(44.dp).pressable(onClick).clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.07f)).border(1.dp, GlassBorder, CircleShape),
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Icon(icon, desc, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
     }
 }
 
-/** Tombol bulat bergradien lime-kuning dengan cahaya di bawahnya. */
+/** Tombol bulat solid warna aksen. */
 @Composable
 fun GradientCircleButton(onClick: () -> Unit, size: Dp, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
         modifier.size(size).pressable(onClick)
-            .shadow(14.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
-            .clip(CircleShape).background(AccentGradient),
+            .clip(CircleShape).background(MaterialTheme.colorScheme.primary),
         contentAlignment = Alignment.Center
     ) { content() }
 }
@@ -111,9 +104,13 @@ fun GradientCircleButton(onClick: () -> Unit, size: Dp, modifier: Modifier = Mod
 /** Warna kolom teks yang seragam dengan tema kaca. */
 @Composable
 fun premiumFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.70f),
+    focusedBorderColor = MaterialTheme.colorScheme.primary,
     unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.60f),
-    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.60f),
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant,
     cursorColor = MaterialTheme.colorScheme.primary
 )
